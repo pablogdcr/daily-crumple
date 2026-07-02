@@ -129,13 +129,19 @@ export function usePageGestures(opts: Options) {
           },
         );
       } else {
-        progress.value = withSpring(0, { damping: 22, stiffness: 220 }, (finished) => {
-          if (finished) {
-            active.value = 0;
-            settling.value = 0;
-            scheduleOnRN(cancel);
-          }
-        });
+        // overshootClamping: the folds relax flat and STOP — a spring dipping
+        // below 0 re-bulges the paper and reads as a rubbery bounce
+        progress.value = withSpring(
+          0,
+          { damping: 26, stiffness: 220, overshootClamping: true },
+          (finished) => {
+            if (finished) {
+              active.value = 0;
+              settling.value = 0;
+              scheduleOnRN(cancel);
+            }
+          },
+        );
       }
     });
 
