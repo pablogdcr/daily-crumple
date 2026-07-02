@@ -1,17 +1,21 @@
 {
   "expo": {
-    "name": "daily-crumple",
+    "name": "The Daily Crumple",
     "slug": "daily-crumple",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#f2ead6",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pablo.gdcr.daily-crumple",
+      "appleTeamId": "LZJLKTMRP5"
     },
     "android": {
+      "package": "com.pablo.gdcr.dailycrumple",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#f2ead6",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +24,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
