@@ -65,18 +65,25 @@ half4 main(float2 p) {
   float lag = mix(mix(0.22, 1.0, rowFall), 1.0, catchup);
   float pull = dragX * lag * (1.0 + 0.4 * catchup);
 
+  // ── top/bottom pinning: the sheet stays attached to the screen's top and
+  // bottom rails — every vertical displacement fades out toward the edges so
+  // the page's horizontal borders never peel into view ──
+  float pin = smoothstep(0.0, uRes.y * 0.16, p.y)
+            * smoothstep(0.0, uRes.y * 0.16, uRes.y - p.y);
+
   float2 sp = p;
   sp.x -= uDir * pull;                     // backward map of the cloth motion
-  sp.y -= dragY * lag;
+  sp.y -= dragY * lag * pin;
 
   // ── gather: pulled cloth draws material in toward the grabbed row ──
-  float gatherK = 0.22 * uProgress * exp(-abs(p.x - uTouch.x) / (uRes.x * 0.55));
+  float gatherK = 0.22 * uProgress * exp(-abs(p.x - uTouch.x) / (uRes.x * 0.55))
+                * pin;
   sp.y = uTouch.y + (sp.y - uTouch.y) * (1.0 + gatherK);
 
   // ── fold displacement (compression along the drag axis, wavy silhouette) ──
   float h  = height(sp);
   sp.x -= uDir * h * 1.1;
-  sp.y += 0.8 * height(sp + float2(0.0, 9.0));
+  sp.y += 0.8 * height(sp + float2(0.0, 9.0)) * pin;
 
   // ── shading from the fold height field ──
   float e  = 1.5;
