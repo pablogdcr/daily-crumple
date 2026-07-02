@@ -78,21 +78,32 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     uSeed: state.seed.value,
   }));
 
-  // 2D crumple owns the drag; the 3D mesh ball takes over at the very end of
-  // the crumple (t 0.8→0.98) — the 2D shader's radial end-state never fully
-  // shows — and stays through the throw.
+  // 2D crumple owns the drag; at the end of the crumple the mesh ball fades
+  // in FAST as a flattened wad that matches the 2D shader's loose-crumple
+  // look, then folds shut into the ball (the morph in the `ball` worklet).
+  // The crossfade hides inside that motion instead of reading as a dissolve.
   const handoff = useDerivedValue(() => {
     const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    const crumpleK = Math.min(Math.max((state.t.value - 0.8) / 0.18, 0), 1);
+    const crumpleK = Math.min(Math.max((state.t.value - 0.78) / 0.08, 0), 1);
     return Math.max(throwK, crumpleK);
   });
-  const opacity2D = useDerivedValue(() => state.active.value * (1 - handoff.value));
+  const opacity2D = useDerivedValue(() => {
+    const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
+    const fadeK = Math.min(Math.max((state.t.value - 0.78) / 0.12, 0), 1);
+    return state.active.value * (1 - Math.max(throwK, fadeK));
+  });
   const opacity3D = useDerivedValue(() => state.active.value * handoff.value);
 
   // ── 3D ball: rotate, light, cull, depth-sort, project — per frame ──
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
-    if (!mesh || (u <= 0.001 && state.t.value < 0.79)) return EMPTY_BALL;
+    if (!mesh || (u <= 0.001 && state.t.value < 0.775)) return EMPTY_BALL;
+
+    // fold-shut morph: the wad starts wide and flat (view space) and
+    // contracts into the tight ball as the crumple completes
+    const m = Math.min(Math.max((state.t.value - 0.78) / 0.22, 0), 1);
+    const sxy = 1 + 0.55 * (1 - m);
+    const sz = 0.3 + 0.7 * m;
 
     const iu = 1 - u;
     // before the throw the ball sits under the finger (cx/cy settle to the
@@ -132,15 +143,15 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
         const x = pos[o];
         const y = pos[o + 1];
         const z = pos[o + 2];
-        // Rodrigues rotation
+        // Rodrigues rotation, then the fold-shut scale in view space
         const dotkv = kx * x + ky * y + kz * z;
         const crx = ky * z - kz * y;
         const cry = kz * x - kx * z;
         const crz = kx * y - ky * x;
         rp.push([
-          x * ca + crx * sa + kx * dotkv * (1 - ca),
-          y * ca + cry * sa + ky * dotkv * (1 - ca),
-          z * ca + crz * sa + kz * dotkv * (1 - ca),
+          (x * ca + crx * sa + kx * dotkv * (1 - ca)) * sxy,
+          (y * ca + cry * sa + ky * dotkv * (1 - ca)) * sxy,
+          (z * ca + crz * sa + kz * dotkv * (1 - ca)) * sz,
         ]);
       }
       // face normal (z toward viewer)

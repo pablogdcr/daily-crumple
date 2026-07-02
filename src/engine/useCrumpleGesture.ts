@@ -101,9 +101,9 @@ export function useCrumpleGesture(opts: Options) {
         t.value = tEnd;
         // confirm: finish the ball at screen center, open the lid, throw
         lidAngle.value = withSpring(-75, { damping: 14, stiffness: 240 });
-        cx.value = withTiming(width / 2, { duration: 170 });
-        cy.value = withTiming(height / 2, { duration: 170 });
-        t.value = withTiming(1, { duration: 170 }, (finished) => {
+        cx.value = withTiming(width / 2, { duration: 240 });
+        cy.value = withTiming(height / 2, { duration: 240 });
+        t.value = withTiming(1, { duration: 240 }, (finished) => {
           if (!finished) return;
           throwU.value = withTiming(
             1,
