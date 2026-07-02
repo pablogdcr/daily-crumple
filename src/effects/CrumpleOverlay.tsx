@@ -68,7 +68,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
   // control point up and left of the chord — the arc of the throw
   const ctrlX = (cx + binX) / 2 - 40;
   const ctrlY = (cy + binY) / 2 - 170;
-  const ballR = 0.19 * width;
+  const ballR = 0.145 * width;
 
   const opacity3D = useDerivedValue(() => state.active.value);
 
