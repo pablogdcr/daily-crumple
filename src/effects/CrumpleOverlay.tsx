@@ -11,6 +11,7 @@ import {
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
+import { TrashBin, binGeometry } from '../components/TrashBin';
 import type { CrumpleState } from '../engine/useCrumpleGesture';
 import { buildPaperBallMesh } from './paperBallMesh';
 
@@ -19,8 +20,6 @@ interface Props {
   state: CrumpleState;
   width: number;
   height: number;
-  binX: number;
-  binY: number;
 }
 
 // color lookups so the per-frame worklet never builds color strings
@@ -57,7 +56,7 @@ const EMPTY_BALL = {
  * No 2D→3D handoff exists: the paper you see folding IS the ball. The throw
  * then tumbles the finished ball along a Bézier arc into the bin.
  */
-export function CrumpleOverlay({ image, state, width, height, binX, binY }: Props) {
+export function CrumpleOverlay({ image, state, width, height }: Props) {
   const mesh = useMemo(
     () => (image ? buildPaperBallMesh(Math.random(), width / height) : null),
     [image, width, height],
@@ -65,10 +64,15 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
 
   const cx = width / 2;
   const cy = height / 2;
-  // control point up and left of the chord — the arc of the throw
-  const ctrlX = (cx + binX) / 2 - 40;
-  const ctrlY = (cy + binY) / 2 - 170;
   const ballR = 0.145 * width;
+  // the throw drops the ball into the mouth of the bin risen at the bottom;
+  // the target sits below the rim so the ball ends fully inside the can
+  const bin = binGeometry(width, height);
+  const tgtX = bin.cx;
+  const tgtY = bin.mouthY + bin.ry + ballR;
+  // control point above the chord — a small up-toss before the drop
+  const ctrlX = cx + 26;
+  const ctrlY = cy - 0.17 * height;
 
   const opacity3D = useDerivedValue(() => state.active.value);
 
@@ -76,7 +80,10 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
     const tt = state.t.value;
-    if (!mesh || (u <= 0.001 && state.active.value < 0.5)) return EMPTY_BALL;
+    // u ≥ 0.985: the ball has sunk below the bin's rim, fully hidden by its
+    // front wall — stop drawing so it doesn't reappear when the bin sinks
+    if (!mesh || u >= 0.985 || (u <= 0.001 && state.active.value < 0.5))
+      return EMPTY_BALL;
 
     // fold progress spans the WHOLE gesture: 0 = the exact flat page
     const m = Math.min(Math.max(tt, 0), 1);
@@ -88,9 +95,10 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     const iu = 1 - u;
     // before the throw the ball sits under the finger (cx/cy settle to the
     // screen center during the confirm animation), then flies the Bézier arc
-    const bx = u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * binX : state.cx.value;
-    const by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY : state.cy.value;
-    const pr = ballR * (1 - 0.84 * u);
+    const bx = u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * tgtX : state.cx.value;
+    const by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * tgtY : state.cy.value;
+    // slight shrink only — the can is near the viewer, not across the room
+    const pr = ballR * (1 - 0.3 * u);
 
     // tumble: fixed axis, angle driven by the flight ONLY — during the fold
     // the wrap stays oriented to the viewer (page centre on the front pole)
@@ -214,7 +222,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
       w.push(face.w, face.w, face.w);
     }
     return { v, t, c, w };
-  }, [mesh, width, height, binX, binY]);
+  }, [mesh, width, height]);
 
   const ballVerts = useDerivedValue(() => ball.value.v);
   const ballTexs = useDerivedValue(() => ball.value.t);
@@ -228,10 +236,10 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     const u = state.throwU.value;
     const iu = 1 - u;
     const bx =
-      u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * binX : state.cx.value;
+      u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * tgtX : state.cx.value;
     const by =
-      u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY : state.cy.value;
-    const pr = ballR * (1 - 0.84 * u);
+      u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * tgtY : state.cy.value;
+    const pr = ballR * (1 - 0.3 * u);
     const r = pr * 1.02;
     return {
       x: bx - r + pr * 0.16,
@@ -242,10 +250,11 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
   });
   const shadowOpacity = useDerivedValue(() => {
     // shadow deepens as the paper lifts off the page and balls up —
-    // a flat page shouldn't cast a ball's shadow
+    // a flat page shouldn't cast a ball's shadow; it fades out entirely
+    // during the throw (the ball leaves the page for the bin)
     const fold = Math.min(Math.max((state.t.value - 0.35) / 0.65, 0), 1);
-    const k = Math.max(fold, Math.min(Math.max(state.throwU.value / 0.12, 0), 1));
-    return state.active.value * k * 0.25 * (1 - 0.45 * state.throwU.value);
+    const u = state.throwU.value;
+    return state.active.value * fold * 0.25 * (1 - u) * (1 - u);
   });
 
   return (
@@ -255,6 +264,15 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
           <Oval rect={shadowRect} color="black" opacity={shadowOpacity}>
             <BlurMask blur={16} style="normal" />
           </Oval>
+          {/* the can's interior renders behind the ball, its body in front —
+              the ball visibly drops INSIDE */}
+          <TrashBin
+            part="back"
+            rise={state.binRise}
+            pulse={state.binScale}
+            width={width}
+            height={height}
+          />
           <Group opacity={opacity3D}>
             {/* pass 1: the article texture mapped onto the facets, unlit —
                 Vertices' own colors+blendMode combine unreliably, so lighting
@@ -275,6 +293,13 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
               <Vertices vertices={ballVerts} colors={ballWash} />
             </Group>
           </Group>
+          <TrashBin
+            part="front"
+            rise={state.binRise}
+            pulse={state.binScale}
+            width={width}
+            height={height}
+          />
         </>
       ) : null}
     </Canvas>

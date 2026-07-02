@@ -3,6 +3,7 @@ import { useWindowDimensions } from 'react-native';
 import {
   Easing,
   useSharedValue,
+  withDelay,
   withSpring,
   withTiming,
   type SharedValue,
@@ -17,12 +18,12 @@ export interface CrumpleState {
   cy: SharedValue<number>;
   /** 1 from drag start until the article is removed. */
   active: SharedValue<number>;
-  /** 0..1 throw animation (ball flies center → bin). */
+  /** 0..1 throw animation (ball flies center → bin mouth). */
   throwU: SharedValue<number>;
   /** Per-gesture noise seed. */
   seed: SharedValue<number>;
-  /** Bin lid angle, degrees (0 closed, -75 open). */
-  lidAngle: SharedValue<number>;
+  /** 0..1 — the bin rises from below the bottom screen edge. */
+  binRise: SharedValue<number>;
   /** Bin pulse scale on ball arrival. */
   binScale: SharedValue<number>;
 }
@@ -31,13 +32,16 @@ interface Options {
   takeSnapshot: () => void;
   /** Mount the page revealed beneath the crumpling one. */
   chooseUnder: () => void;
-  /** Ball reached the bin — remove the article (state swap). */
+  /** Ball landed in the bin — haptics. */
+  land: () => void;
+  /** Bin has sunk away — remove the article (state swap). */
   arrive: () => void;
   cancel: () => void;
   /** False when this is the last article — delete is blocked. */
   canDelete: SharedValue<boolean>;
-  binX: number;
-  binY: number;
+  /** The invisible top-right corner handle — sets the pull direction. */
+  handleX: number;
+  handleY: number;
 }
 
 const CONFIRM_T = 0.6;
@@ -51,16 +55,17 @@ export function useCrumpleGesture(opts: Options) {
   const active = useSharedValue(0);
   const throwU = useSharedValue(0);
   const seed = useSharedValue(0);
-  const lidAngle = useSharedValue(0);
+  const binRise = useSharedValue(0);
   const binScale = useSharedValue(1);
   const settling = useSharedValue(0);
 
-  const { takeSnapshot, chooseUnder, arrive, cancel, canDelete, binX, binY } = opts;
+  const { takeSnapshot, chooseUnder, land, arrive, cancel, canDelete, handleX, handleY } =
+    opts;
 
-  // pull direction: from the bin toward the screen center
-  const dirLen = Math.hypot(width / 2 - binX, height / 2 - binY);
-  const dirX = (width / 2 - binX) / dirLen;
-  const dirY = (height / 2 - binY) / dirLen;
+  // pull direction: from the corner handle toward the screen center
+  const dirLen = Math.hypot(width / 2 - handleX, height / 2 - handleY);
+  const dirX = (width / 2 - handleX) / dirLen;
+  const dirY = (height / 2 - handleY) / dirLen;
   const requiredDist = dirLen * 0.82;
 
   const binPan = Gesture.Pan()
@@ -79,6 +84,8 @@ export function useCrumpleGesture(opts: Options) {
       t.value = 0;
       throwU.value = 0;
       active.value = 1;
+      // the bin surfaces from the bottom edge, ready to receive
+      binRise.value = withSpring(1, { damping: 15, stiffness: 160 });
       scheduleOnRN(chooseUnder);
     })
     .onUpdate((e) => {
@@ -99,8 +106,7 @@ export function useCrumpleGesture(opts: Options) {
       const tEnd = Math.max(t.value, Math.min(Math.max(proj / requiredDist, 0), 1));
       if (tEnd > CONFIRM_T) {
         t.value = tEnd;
-        // confirm: finish the ball at screen center, open the lid, throw
-        lidAngle.value = withSpring(-75, { damping: 14, stiffness: 240 });
+        // confirm: finish the ball at screen center, then drop it in the bin
         cx.value = withTiming(width / 2, { duration: 240 });
         cy.value = withTiming(height / 2, { duration: 240 });
         t.value = withTiming(1, { duration: 240 }, (finished) => {
@@ -110,17 +116,23 @@ export function useCrumpleGesture(opts: Options) {
             { duration: 480, easing: Easing.in(Easing.quad) },
             (done) => {
               if (!done) return;
-              // lid slams shut with overshoot + bin pulse
-              lidAngle.value = withSpring(0, { damping: 11, stiffness: 380 });
-              binScale.value = 1.14;
+              // the can swallows the ball: pulse, then sink back offscreen
+              binScale.value = 1.06;
               binScale.value = withSpring(1, { damping: 9, stiffness: 300 });
-              // active/settling reset in an effect after the article list swap
-              scheduleOnRN(arrive);
+              scheduleOnRN(land);
+              binRise.value = withDelay(
+                160,
+                withTiming(0, { duration: 300 }, (sunk) => {
+                  if (!sunk) return;
+                  // active/settling reset in an effect after the article swap
+                  scheduleOnRN(arrive);
+                }),
+              );
             },
           );
         });
       } else {
-        lidAngle.value = withSpring(0, { damping: 14, stiffness: 240 });
+        binRise.value = withTiming(0, { duration: 240 });
         t.value = withSpring(0, { damping: 20, stiffness: 200 }, (finished) => {
           if (finished) {
             active.value = 0;
@@ -131,6 +143,6 @@ export function useCrumpleGesture(opts: Options) {
       }
     });
 
-  const state: CrumpleState = { t, cx, cy, active, throwU, seed, lidAngle, binScale };
+  const state: CrumpleState = { t, cx, cy, active, throwU, seed, binRise, binScale };
   return { binPan, state, settling };
 }
