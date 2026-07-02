@@ -60,8 +60,8 @@ const EMPTY_BALL = {
  */
 export function CrumpleOverlay({ image, state, width, height, binX, binY }: Props) {
   const mesh = useMemo(
-    () => (image ? buildPaperBallMesh(Math.random(), width / height) : null),
-    [image, width, height],
+    () => (image ? buildPaperBallMesh(Math.random()) : null),
+    [image],
   );
 
   const cx = width / 2;
@@ -78,18 +78,18 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     uSeed: state.seed.value,
   }));
 
-  // 2D crumple owns the drag; at the end of the crumple the mesh ball fades
-  // in FAST as a flattened wad that matches the 2D shader's loose-crumple
-  // look, then folds shut into the ball (the morph in the `ball` worklet).
-  // The crossfade hides inside that motion instead of reading as a dissolve.
+  // 2D crumple owns t 0→0.6 (page gathering + micro-folds). At t=0.6 the
+  // mesh takes over: its scraps start laid out as the gathered page — same
+  // layout the 2D shader is drawing at that instant — so the switch is
+  // invisible, and from there the actual page scraps fold into the ball.
   const handoff = useDerivedValue(() => {
     const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    const crumpleK = Math.min(Math.max((state.t.value - 0.78) / 0.08, 0), 1);
+    const crumpleK = Math.min(Math.max((state.t.value - 0.6) / 0.05, 0), 1);
     return Math.max(throwK, crumpleK);
   });
   const opacity2D = useDerivedValue(() => {
     const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    const fadeK = Math.min(Math.max((state.t.value - 0.78) / 0.12, 0), 1);
+    const fadeK = Math.min(Math.max((state.t.value - 0.6) / 0.08, 0), 1);
     return state.active.value * (1 - Math.max(throwK, fadeK));
   });
   const opacity3D = useDerivedValue(() => state.active.value * handoff.value);
@@ -97,13 +97,15 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
   // ── 3D ball: rotate, light, cull, depth-sort, project — per frame ──
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
-    if (!mesh || (u <= 0.001 && state.t.value < 0.775)) return EMPTY_BALL;
+    const tt = state.t.value;
+    if (!mesh || (u <= 0.001 && tt < 0.595)) return EMPTY_BALL;
 
-    // fold-shut morph: the wad starts wide and flat (view space) and
-    // contracts into the tight ball as the crumple completes
-    const m = Math.min(Math.max((state.t.value - 0.78) / 0.22, 0), 1);
-    const sxy = 1 + 0.55 * (1 - m);
-    const sz = 0.3 + 0.7 * m;
+    // fold progress: 0 = scraps laid out as the gathered page, 1 = ball
+    const m = Math.min(Math.max((tt - 0.6) / 0.4, 0), 1);
+    // the 2D shader's gather at t=0.6 — the mesh start state matches it so
+    // the handoff doesn't jump (morph=smoothstep(0,.9,.6), k=mix(1,.52,…))
+    const GATHER = 0.741;
+    const KINV = 1 / 0.739;
 
     const iu = 1 - u;
     // before the throw the ball sits under the finger (cx/cy settle to the
@@ -137,24 +139,45 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     }[] = [];
 
     for (let f = 0; f < mesh.faceCount; f++) {
+      // staggered fold: each scrap starts crumpling at its own moment
+      const dl = mesh.stagger[f];
+      let mf = Math.min(Math.max((m - dl) / (1 - dl), 0), 1);
+      mf = mf * mf * (3 - 2 * mf);
+
       const rp: number[][] = [];
       for (let i = 0; i < 3; i++) {
         const o = (f * 3 + i) * 3;
         const x = pos[o];
         const y = pos[o + 1];
         const z = pos[o + 2];
-        // Rodrigues rotation, then the fold-shut scale in view space
+        // fold target: Rodrigues-rotated ball vertex
         const dotkv = kx * x + ky * y + kz * z;
         const crx = ky * z - kz * y;
         const cry = kz * x - kx * z;
         const crz = kx * y - ky * x;
-        rp.push([
-          (x * ca + crx * sa + kx * dotkv * (1 - ca)) * sxy,
-          (y * ca + cry * sa + ky * dotkv * (1 - ca)) * sxy,
-          (z * ca + crz * sa + kz * dotkv * (1 - ca)) * sz,
-        ]);
+        const rx = x * ca + crx * sa + kx * dotkv * (1 - ca);
+        const ry = y * ca + cry * sa + ky * dotkv * (1 - ca);
+        const rz = z * ca + crz * sa + kz * dotkv * (1 - ca);
+
+        // fold origin: this vertex's spot on the page, gathered toward the
+        // center exactly as the 2D wrap draws it at the handoff instant
+        const o2 = (f * 3 + i) * 2;
+        let dxp = uvs[o2] * width - bx;
+        let dyp = uvs[o2 + 1] * height - by;
+        const rs = Math.hypot(dxp, dyp) || 1;
+        dxp /= rs;
+        dyp /= rs;
+        const ex = dxp > 1e-4 ? (width - bx) / dxp : dxp < -1e-4 ? -bx / dxp : 1e8;
+        const ey = dyp > 1e-4 ? (height - by) / dyp : dyp < -1e-4 ? -by / dyp : 1e8;
+        const E = Math.max(Math.min(ex, ey), 1);
+        const R = E + (ballR - E) * GATHER;
+        const rStart = R * Math.pow(Math.min(rs / E, 1), KINV);
+        const sx = (dxp * rStart) / pr;
+        const sy = (dyp * rStart) / pr;
+
+        rp.push([sx + (rx - sx) * mf, sy + (ry - sy) * mf, rz * mf]);
       }
-      // face normal (z toward viewer)
+      // face normal — two-sided while folding (a scrap may show its back)
       const ax = rp[1][0] - rp[0][0];
       const ay = rp[1][1] - rp[0][1];
       const az = rp[1][2] - rp[0][2];
@@ -168,14 +191,21 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
       nx /= nl;
       ny /= nl;
       nz /= nl;
-      if (nz <= 0.02) continue; // backface
+      if (nz <= 0.02 && m > 0.999) continue; // backface-cull the finished ball only
+      if (nz < 0) {
+        nx = -nx;
+        ny = -ny;
+        nz = -nz;
+      }
 
-      // paper bounces light — high ambient floor, d² for facet contrast on top
+      // paper bounces light — high ambient floor, d² for facet contrast on
+      // top; scraps still flat on the page keep the page's own brightness
       const d = Math.max((nx * lx + ny * ly + nz * lz) / ll, 0);
-      const light = Math.min(1, 0.58 + 0.5 * d * d);
+      const facetLight = Math.min(1, 0.58 + 0.5 * d * d);
+      const light = 1 + (facetLight - 1) * mf;
       const g = GRAYS[Math.round(light * 100)];
       // facets catching the light wash toward blank paper — print fades there
-      const wash = Math.min(Math.max((light - 0.78) * 2.2, 0), 0.6);
+      const wash = Math.min(Math.max((light - 0.78) * 2.2, 0), 0.6) * mf;
       const w = WHITES[Math.round(wash * 100)];
 
       const p: { x: number; y: number }[] = [];
@@ -231,9 +261,13 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
       height: 1.9 * r,
     };
   });
-  const shadowOpacity = useDerivedValue(
-    () => state.active.value * handoff.value * 0.25 * (1 - 0.45 * state.throwU.value),
-  );
+  const shadowOpacity = useDerivedValue(() => {
+    // shadow deepens as the page lifts and balls up (fold progress), not
+    // with the layer handoff — a flat page shouldn't cast a ball's shadow
+    const fold = Math.min(Math.max((state.t.value - 0.6) / 0.4, 0), 1);
+    const k = Math.max(fold, Math.min(Math.max(state.throwU.value / 0.12, 0), 1));
+    return state.active.value * k * 0.25 * (1 - 0.45 * state.throwU.value);
+  });
 
   return (
     <Canvas style={styles.canvas} pointerEvents="none">

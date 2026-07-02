@@ -2,18 +2,25 @@
  * Geometry for the 3D crumpled paper ball: an icosphere whose vertices are
  * radially displaced by seeded noise, with a few deep dents. Each face keeps
  * its own copy of the vertices (flat shading — hard creases between facets,
- * like real crumpled paper) and samples its OWN random patch of the article
- * page at a random rotation: text fragments break direction at every crease,
- * which is what makes real crumpled newsprint read as crumpled. Built once
- * per delete gesture on the JS thread; per-frame rotation/projection happens
- * in a worklet.
+ * like real crumpled paper).
+ *
+ * The page is partitioned into exactly as many triangular scraps as the ball
+ * has facets (5×8 grid of quads → 80 triangles). Each facet is assigned one
+ * scrap: the scrap's page coordinates are BOTH its texture mapping and its
+ * fold start position, so at fold=0 the facets reassemble the complete page,
+ * and during the fold each scrap of paper visibly travels from its spot on
+ * the page to its place on the ball. Nothing is swapped or faded — the page
+ * itself folds into the ball. Built once per delete gesture on the JS
+ * thread; per-frame folding/rotation/projection happens in a worklet.
  */
 
 export interface PaperBallMesh {
   /** Per-face vertex positions, unit-ish radius: [f0v0x, f0v0y, f0v0z, f0v1x, ...] */
   positions: number[];
-  /** Per-face texture coords in 0..1 page space: [f0v0u, f0v0v, f0v1u, ...] */
+  /** Per-face page-scrap coords in 0..1 page space — texture AND fold origin. */
   uvs: number[];
+  /** Per-face fold delay (0..0.35) — scraps crumple in staggered, not in lockstep. */
+  stagger: number[];
   faceCount: number;
 }
 
@@ -28,8 +35,7 @@ function mulberry32(seed: number) {
   };
 }
 
-/** @param aspect page width / height — keeps text aspect correct in the patches */
-export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh {
+export function buildPaperBallMesh(seed: number): PaperBallMesh {
   const rand = mulberry32(Math.floor(seed * 1e6) + 1);
 
   // ── icosahedron ──
@@ -87,25 +93,39 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
     z * radii[i],
   ]);
 
+  // ── page partition: 5×8 grid of quads → 80 triangles, one per facet ──
+  const pageTris: [number, number][][] = [];
+  for (let j = 0; j < 8; j++) {
+    for (let i = 0; i < 5; i++) {
+      const x0 = i / 5;
+      const x1 = (i + 1) / 5;
+      const y0 = j / 8;
+      const y1 = (j + 1) / 8;
+      pageTris.push([[x0, y0], [x1, y0], [x0, y1]]);
+      pageTris.push([[x1, y1], [x0, y1], [x1, y0]]);
+    }
+  }
+  // seeded shuffle: which scrap of the page lands on which facet of the ball
+  for (let i = pageTris.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pageTris[i], pageTris[j]] = [pageTris[j], pageTris[i]];
+  }
+
   const positions: number[] = [];
   const uvs: number[] = [];
-  for (const face of faces) {
+  const stagger: number[] = [];
+  faces.forEach((face, f) => {
+    // rotate the scrap↔facet vertex correspondence so text lands at varied
+    // angles on the finished ball
+    const rot = Math.floor(rand() * 3);
     for (let i = 0; i < 3; i++) {
       const [x, y, z] = displaced[face[i]];
       positions.push(x, y, z);
+      const [u, v] = pageTris[f][(i + rot) % 3];
+      uvs.push(u, v);
     }
-    // each facet is its own scrap of the page: random spot, random rotation.
-    // Patch size ≈ facet size on screen so the text density looks true.
-    const pu = 0.18 + rand() * 0.64;
-    const pv = 0.12 + rand() * 0.72;
-    const rot = rand() * Math.PI * 2;
-    const pr = 0.11 + rand() * 0.06; // circumradius, width fractions
-    for (let i = 0; i < 3; i++) {
-      const a = rot + (i * Math.PI * 2) / 3;
-      // offsets in width units on both axes → text keeps its aspect
-      uvs.push(pu + pr * Math.cos(a), pv + pr * Math.sin(a) * aspect);
-    }
-  }
+    stagger.push(rand() * 0.35);
+  });
 
-  return { positions, uvs, faceCount: faces.length };
+  return { positions, uvs, stagger, faceCount: faces.length };
 }
