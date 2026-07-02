@@ -42,10 +42,22 @@ export function NewsStack() {
 
   const currentArticle = articles[index];
 
+  // depend on snapshot.take (stable), NOT the snapshot object — its identity
+  // changes every render, and takeSnapshot feeds effects: an unstable identity
+  // here loops take → setImage → render → take until Hermes OOMs
+  const takeSnapshotFn = snapshot.take;
   const takeSnapshot = useCallback(() => {
     setSnapArticleId(currentArticle.id);
-    snapshot.take();
-  }, [currentArticle.id, snapshot]);
+    takeSnapshotFn();
+  }, [currentArticle.id, takeSnapshotFn]);
+
+  // Pre-warm: the first makeImageFromView after launch is slow (>1s cold
+  // Metal pipeline) — capture ahead of time so the shaders have an image the
+  // moment a gesture starts. Refreshed after every page swap.
+  useEffect(() => {
+    const id = setTimeout(takeSnapshot, 400);
+    return () => clearTimeout(id);
+  }, [index, articles, takeSnapshot]);
 
   const chooseUnder = useCallback(
     (dir: number) => {

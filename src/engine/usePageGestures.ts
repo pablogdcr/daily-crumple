@@ -104,9 +104,16 @@ export function usePageGestures(opts: Options) {
       'worklet';
       if (settling.value || !active.value) return;
       const blocked = dir.value < 0 ? !hasNext.value : !hasPrev.value;
+      // recompute from the end event — trailing Move events can be coalesced,
+      // leaving progress.value stale at release
+      const endProgress = Math.max(
+        progress.value,
+        Math.min(Math.abs(e.translationX) / width, 1),
+      );
       const shouldCommit =
         !blocked &&
-        (progress.value > COMMIT_PROGRESS || Math.abs(e.velocityX) > COMMIT_VELOCITY);
+        (endProgress > COMMIT_PROGRESS || Math.abs(e.velocityX) > COMMIT_VELOCITY);
+      if (shouldCommit && !blocked) progress.value = endProgress;
       settling.value = 1;
       if (shouldCommit) {
         progress.value = withTiming(

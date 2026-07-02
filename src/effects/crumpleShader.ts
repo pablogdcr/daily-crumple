@@ -86,8 +86,8 @@ half4 main(float2 p) {
   float R = mix(E, Rf, morph) * (1.0 + rimN);
   float rr = r / R;
 
-  // soft constant-width alpha edge (≈6px) instead of a band that scales with R
-  float band = 3.0 / R;
+  // crisp edge: ~2px anti-aliasing band only, no soft fade
+  float band = 1.0 / R;
   float alpha = 1.0 - smoothstep(1.0 - band, 1.0 + band, rr);
 
   // ── wrap: the whole page along this ray is swallowed into radius R, and

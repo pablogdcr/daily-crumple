@@ -89,11 +89,16 @@ export function useCrumpleGesture(opts: Options) {
       const proj = e.translationX * dirX + e.translationY * dirY;
       t.value = Math.min(Math.max(proj / requiredDist, 0), 1);
     })
-    .onEnd(() => {
+    .onEnd((e) => {
       'worklet';
       if (settling.value || !active.value) return;
       settling.value = 1;
-      if (t.value > CONFIRM_T) {
+      // recompute from the end event itself — trailing Move events can be
+      // coalesced, leaving t.value stale at release
+      const proj = e.translationX * dirX + e.translationY * dirY;
+      const tEnd = Math.max(t.value, Math.min(Math.max(proj / requiredDist, 0), 1));
+      if (tEnd > CONFIRM_T) {
+        t.value = tEnd;
         // confirm: finish the ball at screen center, open the lid, throw
         lidAngle.value = withSpring(-75, { damping: 14, stiffness: 240 });
         cx.value = withTiming(width / 2, { duration: 170 });
