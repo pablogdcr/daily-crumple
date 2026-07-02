@@ -3,11 +3,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticlePage } from '../components/ArticlePage';
 import { ARTICLES, type Article } from '../data/articles';
@@ -16,6 +19,7 @@ import { CrumpleOverlay } from '../effects/CrumpleOverlay';
 import {
   OverscrollOverlay,
   overscrollAmount,
+  overscrollShowing,
   type OverscrollWiring,
 } from '../effects/OverscrollOverlay';
 import { usePageGestures, type CrinkleGestureState } from '../engine/usePageGestures';
@@ -110,16 +114,54 @@ export function NewsStack() {
   const overscrollY = useSharedValue(0);
   const overscrollMax = useSharedValue(0);
   const overscrollArmed = useSharedValue(0);
+  const overscrollReady = useSharedValue(0);
+  const overscrollRamp = useSharedValue(1);
   const overscrollSeed = useSharedValue(0);
   const overscroll: OverscrollWiring = {
     y: overscrollY,
     max: overscrollMax,
     armed: overscrollArmed,
+    ready: overscrollReady,
+    ramp: overscrollRamp,
     seed: overscrollSeed,
   };
-  const overscrollActive = useDerivedValue<number>(() =>
-    overscrollAmount(overscroll) !== 0 ? 1 : 0,
+  const overscrollActive = useDerivedValue<number>(() => overscrollShowing(overscroll));
+
+  // Momentum overscroll (a fling coasting past the edge, no finger down):
+  // the touch-down snapshot is stale, so grab a fresh one the moment the
+  // bounce begins. The content is pinned at the edge by ArticlePage's
+  // compensation transform, so the capture is edge-exact; once it lands the
+  // crumple ramps in over ~140ms.
+  const momentumPending = useRef(false);
+  const requestMomentumSnapshot = useCallback(() => {
+    momentumPending.current = true;
+    takeSnapshot();
+  }, [takeSnapshot]);
+  useAnimatedReaction(
+    () => overscrollAmount(overscroll),
+    (over, prev) => {
+      if (over !== 0 && !(prev ?? 0)) {
+        const armedForEdge =
+          over > 0 ? overscrollArmed.value & 1 : overscrollArmed.value & 2;
+        if (!armedForEdge && !overscrollReady.value) {
+          overscrollSeed.value = Math.random() * 100;
+          scheduleOnRN(requestMomentumSnapshot);
+        }
+      } else if (over === 0 && (prev ?? 0)) {
+        overscrollReady.value = 0;
+      }
+    },
   );
+  const snapImage = snapshot.image;
+  useEffect(() => {
+    if (momentumPending.current && snapImage) {
+      momentumPending.current = false;
+      overscrollRamp.value = 0;
+      overscrollRamp.value = withTiming(1, { duration: 140 });
+      overscrollReady.value = 1;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapImage]);
 
   // ── crumple delete: dragged from the invisible top-right corner handle ──
   const handleX = width - 10 - HANDLE_SIZE / 2;

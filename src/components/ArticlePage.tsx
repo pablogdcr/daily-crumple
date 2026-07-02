@@ -1,7 +1,10 @@
 import { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Article } from '../data/articles';
 import type { OverscrollWiring } from '../effects/OverscrollOverlay';
@@ -51,14 +54,32 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
     onBeginDrag: (e) => {
       if (!overscroll) return;
       const max = Math.max(0, e.contentSize.height - e.layoutMeasurement.height);
-      overscroll.y.value = e.contentOffset.y;
+      const y = e.contentOffset.y;
+      overscroll.y.value = y;
       overscroll.max.value = max;
       let armed = 0;
-      if (e.contentOffset.y <= 2) armed |= 1;
-      if (e.contentOffset.y >= max - 2) armed |= 2;
+      if (y <= 2) armed |= 1;
+      if (y >= max - 2) armed |= 2;
       overscroll.armed.value = armed;
-      overscroll.seed.value = Math.random() * 100;
+      // don't reseed or reset the ramp when catching an in-flight bounce —
+      // the folds would jump mid-crumple
+      if (y >= -0.5 && y <= max + 0.5) {
+        overscroll.seed.value = Math.random() * 100;
+        overscroll.ramp.value = 1;
+      }
     },
+  });
+
+  // While overscrolled, cancel the native rubber-band translation so the
+  // content stays pinned at the edge: the crumple shader owns all visible
+  // motion, and a momentum snapshot (taken mid-bounce) captures the page
+  // exactly as it rests at the edge.
+  const pinStyle = useAnimatedStyle(() => {
+    if (!overscroll) return { transform: [{ translateY: 0 }] };
+    const y = overscroll.y.value;
+    const m = overscroll.max.value;
+    const comp = y < 0 ? y : y > m ? y - m : 0;
+    return { transform: [{ translateY: comp }] };
   });
 
   return (
@@ -75,6 +96,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
+        <Animated.View style={pinStyle}>
         {/* ─── Masthead ─── */}
         <View style={styles.topRule} />
         {/* right slot stays empty — the tear-here coupon owns that corner */}
@@ -147,6 +169,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         {/* ─── End slug ─── */}
         <Text style={styles.endSlug}>✦ ✦ ✦</Text>
         <Text style={styles.footer}>THE DAILY CRUMPLE — ALL THE NEWS THAT’S FIT TO FOLD</Text>
+        </Animated.View>
       </AnimatedScrollView>
 
       {/* ─── Corner perforation — the delete affordance, printed on the page
