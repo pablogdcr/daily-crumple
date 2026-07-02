@@ -1,10 +1,12 @@
 /**
  * Geometry for the 3D crumpled paper ball: an icosphere whose vertices are
- * radially displaced by seeded noise. Each face keeps its own copy of the
- * vertices (flat shading — hard creases between facets, like real crumpled
- * paper) and maps to a patch of the article page via spherical UVs, so the
- * print wraps around the ball. Built once per delete gesture on the JS thread;
- * per-frame rotation/projection happens in a worklet.
+ * radially displaced by seeded noise, with a few deep dents. Each face keeps
+ * its own copy of the vertices (flat shading — hard creases between facets,
+ * like real crumpled paper) and samples its OWN random patch of the article
+ * page at a random rotation: text fragments break direction at every crease,
+ * which is what makes real crumpled newsprint read as crumpled. Built once
+ * per delete gesture on the JS thread; per-frame rotation/projection happens
+ * in a worklet.
  */
 
 export interface PaperBallMesh {
@@ -26,7 +28,8 @@ function mulberry32(seed: number) {
   };
 }
 
-export function buildPaperBallMesh(seed: number): PaperBallMesh {
+/** @param aspect page width / height — keeps text aspect correct in the patches */
+export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh {
   const rand = mulberry32(Math.floor(seed * 1e6) + 1);
 
   // ── icosahedron ──
@@ -72,35 +75,35 @@ export function buildPaperBallMesh(seed: number): PaperBallMesh {
   }
   faces = next;
 
-  // ── crumple: radial displacement per unique vertex (facets stay welded) ──
-  const radii = verts.map(() => 1 + (rand() - 0.5) * 0.5);
+  // ── crumple: radial displacement per unique vertex (facets stay welded),
+  // plus a few deep dents so the silhouette is lumpy, not spherical ──
+  const radii = verts.map(() => 1 + (rand() - 0.5) * 0.72);
+  for (let d = 0; d < 4; d++) {
+    radii[Math.floor(rand() * radii.length)] *= 0.62;
+  }
   const displaced = verts.map(([x, y, z], i) => [
     x * radii[i],
     y * radii[i],
     z * radii[i],
   ]);
 
-  // ── spherical UVs from the undisplaced directions (page wraps the ball) ──
-  const uvOf = (i: number): [number, number] => {
-    const [x, y, z] = verts[i];
-    const u = 0.5 + Math.atan2(z, x) / (2 * Math.PI);
-    const v = Math.acos(Math.max(-1, Math.min(1, y))) / Math.PI;
-    return [u, v];
-  };
-
   const positions: number[] = [];
   const uvs: number[] = [];
   for (const face of faces) {
-    // fix UV seam: if the face straddles the atan2 wrap, shift the low side
-    const fuv = face.map(uvOf);
-    const us = fuv.map(([u]) => u);
-    const wrap = Math.max(...us) - Math.min(...us) > 0.5;
     for (let i = 0; i < 3; i++) {
       const [x, y, z] = displaced[face[i]];
       positions.push(x, y, z);
-      let [u, v] = fuv[i];
-      if (wrap && u < 0.5) u += 1;
-      uvs.push(Math.min(u, 1), v);
+    }
+    // each facet is its own scrap of the page: random spot, random rotation.
+    // Patch size ≈ facet size on screen so the text density looks true.
+    const pu = 0.18 + rand() * 0.64;
+    const pv = 0.12 + rand() * 0.72;
+    const rot = rand() * Math.PI * 2;
+    const pr = 0.11 + rand() * 0.06; // circumradius, width fractions
+    for (let i = 0; i < 3; i++) {
+      const a = rot + (i * Math.PI * 2) / 3;
+      // offsets in width units on both axes → text keeps its aspect
+      uvs.push(pu + pr * Math.cos(a), pv + pr * Math.sin(a) * aspect);
     }
   }
 

@@ -1,4 +1,5 @@
 import {
+  BlurMask,
   Canvas,
   Fill,
   Group,
@@ -25,18 +26,29 @@ interface Props {
   binY: number;
 }
 
-// grayscale lookup so the per-frame worklet never builds color strings
+// color lookups so the per-frame worklet never builds color strings
 const GRAYS = Array.from({ length: 101 }, (_, i) => {
   const v = Math.round((i / 100) * 255)
     .toString(16)
     .padStart(2, '0');
   return `#${v}${v}${v}`;
 });
+// additive paper-white by intensity — lit facets wash toward blank paper.
+// Drawn with blendMode="plus": black adds nothing, so unlit faces are no-ops.
+const WHITES = Array.from({ length: 101 }, (_, i) => {
+  const k = i / 100;
+  const c = (v: number) =>
+    Math.round(v * k)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${c(250)}${c(244)}${c(232)}`;
+});
 
 const EMPTY_BALL = {
   v: [vec(0, 0), vec(0, 0), vec(0, 0)],
   t: [vec(0, 0), vec(0, 0), vec(0, 0)],
   c: ['#ffffff', '#ffffff', '#ffffff'],
+  w: ['#ffffff00', '#ffffff00', '#ffffff00'],
 };
 
 /**
@@ -48,8 +60,8 @@ const EMPTY_BALL = {
  */
 export function CrumpleOverlay({ image, state, width, height, binX, binY }: Props) {
   const mesh = useMemo(
-    () => (image ? buildPaperBallMesh(Math.random()) : null),
-    [image],
+    () => (image ? buildPaperBallMesh(Math.random(), width / height) : null),
+    [image, width, height],
   );
 
   const cx = width / 2;
@@ -66,23 +78,27 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     uSeed: state.seed.value,
   }));
 
-  // 2D crumple visible while dragging, fades out as the 3D ball takes over
-  const opacity2D = useDerivedValue(() => {
-    const k = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    return state.active.value * (1 - k);
+  // 2D crumple owns the drag; the 3D mesh ball takes over at the very end of
+  // the crumple (t 0.8→0.98) — the 2D shader's radial end-state never fully
+  // shows — and stays through the throw.
+  const handoff = useDerivedValue(() => {
+    const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
+    const crumpleK = Math.min(Math.max((state.t.value - 0.8) / 0.18, 0), 1);
+    return Math.max(throwK, crumpleK);
   });
-  const opacity3D = useDerivedValue(() =>
-    state.active.value * Math.min(Math.max(state.throwU.value / 0.12, 0), 1),
-  );
+  const opacity2D = useDerivedValue(() => state.active.value * (1 - handoff.value));
+  const opacity3D = useDerivedValue(() => state.active.value * handoff.value);
 
   // ── 3D ball: rotate, light, cull, depth-sort, project — per frame ──
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
-    if (!mesh || u <= 0.001) return EMPTY_BALL;
+    if (!mesh || (u <= 0.001 && state.t.value < 0.79)) return EMPTY_BALL;
 
     const iu = 1 - u;
-    const bx = iu * iu * cx + 2 * iu * u * ctrlX + u * u * binX;
-    const by = iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY;
+    // before the throw the ball sits under the finger (cx/cy settle to the
+    // screen center during the confirm animation), then flies the Bézier arc
+    const bx = u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * binX : state.cx.value;
+    const by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY : state.cy.value;
     const pr = ballR * (1 - 0.84 * u);
 
     // tumble: fixed axis, angle driven by the flight
@@ -106,6 +122,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
       p: { x: number; y: number }[];
       t: { x: number; y: number }[];
       g: string;
+      w: string;
     }[] = [];
 
     for (let f = 0; f < mesh.faceCount; f++) {
@@ -142,11 +159,13 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
       nz /= nl;
       if (nz <= 0.02) continue; // backface
 
-      const light = Math.min(
-        1,
-        0.5 + 0.55 * Math.max((nx * lx + ny * ly + nz * lz) / ll, 0),
-      );
+      // paper bounces light — high ambient floor, d² for facet contrast on top
+      const d = Math.max((nx * lx + ny * ly + nz * lz) / ll, 0);
+      const light = Math.min(1, 0.58 + 0.5 * d * d);
       const g = GRAYS[Math.round(light * 100)];
+      // facets catching the light wash toward blank paper — print fades there
+      const wash = Math.min(Math.max((light - 0.78) * 2.2, 0), 0.6);
+      const w = WHITES[Math.round(wash * 100)];
 
       const p: { x: number; y: number }[] = [];
       const t: { x: number; y: number }[] = [];
@@ -159,7 +178,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
         const o = (f * 3 + i) * 2;
         t.push({ x: uvs[o] * width, y: uvs[o + 1] * height });
       }
-      kept.push({ z: zsum / 3, p, t, g });
+      kept.push({ z: zsum / 3, p, t, g, w });
     }
 
     kept.sort((a, b) => a.z - b.z); // painter: far faces first
@@ -167,37 +186,51 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     const v: { x: number; y: number }[] = [];
     const t: { x: number; y: number }[] = [];
     const c: string[] = [];
+    const w: string[] = [];
     for (const face of kept) {
       v.push(face.p[0], face.p[1], face.p[2]);
       t.push(face.t[0], face.t[1], face.t[2]);
       c.push(face.g, face.g, face.g);
+      w.push(face.w, face.w, face.w);
     }
-    return { v, t, c };
+    return { v, t, c, w };
   }, [mesh, width, height, binX, binY]);
 
   const ballVerts = useDerivedValue(() => ball.value.v);
   const ballTexs = useDerivedValue(() => ball.value.t);
   const ballCols = useDerivedValue(() => ball.value.c);
+  const ballWash = useDerivedValue(() => ball.value.w);
 
+  // rounded drop shadow just under the ball itself — the ball floats toward
+  // the viewer over the page, so its shadow is a soft near-circle behind it,
+  // offset down-right (light comes from the top-left)
   const shadowRect = useDerivedValue(() => {
     const u = state.throwU.value;
     const iu = 1 - u;
-    // shadow follows the straight chord (the "floor" under the arc)
-    const sx = iu * cx + u * binX;
-    const sy = iu * cy + u * binY;
-    const r = ballR * (1 - 0.7 * u);
-    return { x: sx - r, y: sy + ballR * 0.9, width: 2 * r, height: r * 0.45 };
+    const bx =
+      u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * binX : state.cx.value;
+    const by =
+      u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY : state.cy.value;
+    const pr = ballR * (1 - 0.84 * u);
+    const r = pr * 1.02;
+    return {
+      x: bx - r + pr * 0.16,
+      y: by - r * 0.95 + pr * 0.34,
+      width: 2 * r,
+      height: 1.9 * r,
+    };
   });
-  const shadowOpacity = useDerivedValue(() => {
-    const u = state.throwU.value;
-    return u > 0 ? 0.22 * (1 - 0.6 * u) : 0;
-  });
+  const shadowOpacity = useDerivedValue(
+    () => state.active.value * handoff.value * 0.25 * (1 - 0.45 * state.throwU.value),
+  );
 
   return (
     <Canvas style={styles.canvas} pointerEvents="none">
       {image ? (
         <>
-          <Oval rect={shadowRect} color="black" opacity={shadowOpacity} />
+          <Oval rect={shadowRect} color="black" opacity={shadowOpacity}>
+            <BlurMask blur={16} style="normal" />
+          </Oval>
           <Group opacity={opacity2D}>
             <Fill>
               <Shader source={crumpleEffect} uniforms={uniforms}>
@@ -210,18 +243,24 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
             </Fill>
           </Group>
           <Group opacity={opacity3D}>
-            <Vertices
-              vertices={ballVerts}
-              textures={ballTexs}
-              colors={ballCols}
-              blendMode="modulate"
-            >
+            {/* pass 1: the article texture mapped onto the facets, unlit —
+                Vertices' own colors+blendMode combine unreliably, so lighting
+                is applied by the follow-up passes over the same triangles */}
+            <Vertices vertices={ballVerts} textures={ballTexs}>
               <ImageShader
                 image={image}
                 fit="fill"
                 rect={{ x: 0, y: 0, width, height }}
               />
             </Vertices>
+            {/* pass 2: multiply per-facet grays — the crease shading */}
+            <Group blendMode="multiply">
+              <Vertices vertices={ballVerts} colors={ballCols} />
+            </Group>
+            {/* pass 3: additive white — lit facets wash toward blank paper */}
+            <Group blendMode="plus">
+              <Vertices vertices={ballVerts} colors={ballWash} />
+            </Group>
           </Group>
         </>
       ) : null}
