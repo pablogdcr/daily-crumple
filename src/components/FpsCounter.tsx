@@ -6,6 +6,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, fonts } from '../theme';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
@@ -35,15 +36,15 @@ export function FpsCounter() {
     }
   });
 
-  const animatedProps = useAnimatedProps(() => ({
-    text: `${Math.round(fps.value)} fps`,
+  const animatedProps = useAnimatedProps(() => {
+    const label = `PRESS SPEED — ${Math.round(fps.value)} FPS`;
     // keep iOS's controlled-input invariant happy while we drive `text` directly
-    defaultValue: `${Math.round(fps.value)} fps`,
-  }));
+    return { text: label, defaultValue: label };
+  });
 
-  // colour-code for an at-a-glance read: green ≈120, amber ≈60, red below
+  // ink normally; drops below 50 print in the pressroom's red correction ink
   const animatedStyle = useAnimatedStyle(() => ({
-    color: fps.value >= 100 ? '#30D158' : fps.value >= 50 ? '#FFD60A' : '#FF453A',
+    color: fps.value >= 50 || fps.value === 0 ? colors.inkFaint : '#8a2418',
   }));
 
   return (
@@ -52,26 +53,31 @@ export function FpsCounter() {
       pointerEvents="none"
       underlineColorAndroid="transparent"
       allowFontScaling={false}
-      style={[styles.text, { top: insets.top + 6 }, animatedStyle]}
+      style={[styles.text, { bottom: insets.bottom - 22 }, animatedStyle]}
       // initial frame before the worklet writes the first value
-      defaultValue="… fps"
+      defaultValue="PRESS SPEED — … FPS"
       animatedProps={animatedProps}
     />
   );
 }
 
+// styled as a printer's colophon mark at the foot of the page — set in the
+// paper's own type so the readout looks typeset, not overlaid
 const styles = StyleSheet.create({
   text: {
     position: 'absolute',
-    right: 8,
+    left: 0,
     zIndex: 9999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    fontSize: 13,
-    fontWeight: '700',
+    paddingLeft: 18,
+    paddingRight: 12,
+    paddingVertical: 3,
+    // paper-on-paper: masks scrolling body text behind the mark without
+    // reading as an overlay chip
+    backgroundColor: colors.paper,
+    fontFamily: fonts.body,
+    fontSize: 8.5,
+    letterSpacing: 1.2,
     fontVariant: ['tabular-nums'],
-    textAlign: 'right',
+    textAlign: 'left',
   },
 });

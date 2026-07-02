@@ -84,8 +84,9 @@ export function useCrumpleGesture(opts: Options) {
       t.value = 0;
       throwU.value = 0;
       active.value = 1;
-      // the bin surfaces from the bottom edge, ready to receive
-      binRise.value = withSpring(1, { damping: 15, stiffness: 160 });
+      // the bin surfaces from the bottom edge, ready to receive — near
+      // critically damped: a firm rise, no wobble
+      binRise.value = withSpring(1, { damping: 20, stiffness: 200 });
       scheduleOnRN(chooseUnder);
     })
     .onUpdate((e) => {
