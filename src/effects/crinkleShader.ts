@@ -5,11 +5,12 @@ import { Skia } from '@shopify/react-native-skia';
  * where in the snapshot it reads from).
  *
  * The look: as the finger drags horizontally, the page follows — but not
- * rigidly. The grabbed row travels furthest (shear anchored on uOrigin.y, so a
- * swipe started at the top peels the page diagonally from the top, a bottom
- * swipe from the bottom). Compression folds radiate from the finger, fanning
- * with the grab height, and a per-gesture seed shifts every wobble phase so no
- * two swipes fold the same way. Shading comes from the fold height field
+ * rigidly. The row under the finger travels furthest (shear anchored on
+ * uTouch.y, so a grip at the top peels the page diagonally from the top, a
+ * bottom grip from the bottom — and the grip rides up and down WITH the
+ * finger, dragging the page vertically too). Compression folds radiate from
+ * the finger, fanning with the grip height, and a per-gesture seed shifts
+ * every wobble phase so no two swipes fold the same way. Shading comes from the fold height field
  * (numeric normal → Lambert + paper sheen + valley AO), and pixels dragged off
  * the page leave a soft cast shadow over the article underneath.
  */
@@ -31,8 +32,9 @@ float height(float2 p) {
   float s = d.x * -uDir;
   float q = d.y;
 
-  // grab height in -1..1: top grab tilts ridges one way, bottom the other
-  float fan = (uOrigin.y / uRes.y - 0.5) * 2.0;
+  // grab height in -1..1: top grab tilts ridges one way, bottom the other,
+  // and the fan re-tilts live as the finger moves vertically
+  float fan = (uTouch.y / uRes.y - 0.5) * 2.0;
   // shear the ridge coordinate so folds radiate from the grab corner
   float sr = s + fan * q * 0.55;
 
@@ -50,8 +52,13 @@ float height(float2 p) {
 half4 main(float2 p) {
   // ── cloth pull: the grabbed row tracks the finger 1:1, the rest lags ──
   // uProgress == |translationX| / width, so dragX is exactly the finger travel.
+  // The pull is anchored to the finger's CURRENT row, not where the gesture
+  // started — moving the finger vertically mid-swipe moves the grip with it.
   float dragX = uProgress * uRes.x;
-  float rowFall = exp(-abs(p.y - uOrigin.y) / (uRes.y * 0.35));
+  // vertical cloth follow: the grip carries the page up/down with the finger
+  // (gated on progress so a cancel still springs back to a clean page)
+  float dragY = (uTouch.y - uOrigin.y) * smoothstep(0.0, 0.12, uProgress);
+  float rowFall = exp(-abs(p.y - uTouch.y) / (uRes.y * 0.35));
   // once the release animation runs, the lagging cloth catches up and the
   // whole page departs
   float catchup = smoothstep(0.55, 1.0, uProgress);
@@ -60,10 +67,11 @@ half4 main(float2 p) {
 
   float2 sp = p;
   sp.x -= uDir * pull;                     // backward map of the cloth motion
+  sp.y -= dragY * lag;
 
   // ── gather: pulled cloth draws material in toward the grabbed row ──
   float gatherK = 0.22 * uProgress * exp(-abs(p.x - uTouch.x) / (uRes.x * 0.55));
-  sp.y = uOrigin.y + (sp.y - uOrigin.y) * (1.0 + gatherK);
+  sp.y = uTouch.y + (sp.y - uTouch.y) * (1.0 + gatherK);
 
   // ── fold displacement (compression along the drag axis, wavy silhouette) ──
   float h  = height(sp);
