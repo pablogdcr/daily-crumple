@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Animated, {
@@ -13,6 +13,33 @@ import { colors, fonts, layout } from '../theme';
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const EDITION_DATE = 'Wednesday, July 2, 2026';
+
+/** Ascent room the raised cap needs — becomes the first line's height. */
+const CAP_BOX_HEIGHT = 34;
+
+/**
+ * The raised cap, mounted as an inline view attachment. A nested Text segment
+ * with a taller lineHeight inflates EVERY line of the paragraph on iOS (the
+ * paragraph style is paragraph-wide), and matching the body lineHeight clips
+ * the glyph. An inline view only grows the line that contains it — so the
+ * first line gets the cap's height and the rest keep the body leading. The
+ * box width tracks the measured glyph (letters vary), and the glyph hangs
+ * below the box just enough to sit on the first line's baseline.
+ */
+function RaisedCap({ letter }: { letter: string }) {
+  const [width, setWidth] = useState(26);
+  return (
+    <View style={{ width, height: CAP_BOX_HEIGHT }}>
+      <Text
+        style={styles.dropCap}
+        numberOfLines={1}
+        onLayout={(e) => setWidth(Math.ceil(e.nativeEvent.layout.width))}
+      >
+        {letter}
+      </Text>
+    </View>
+  );
+}
 
 interface Props {
   article: Article;
@@ -133,7 +160,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
 
         {/* ─── Lead with raised cap on the dateline ─── */}
         <Text style={styles.lead}>
-          <Text style={styles.dropCap}>{article.dateline.charAt(0)}</Text>
+          <RaisedCap letter={article.dateline.charAt(0)} />
           <Text style={styles.bodyBoldInline}>{article.dateline.slice(1)} </Text>
           {lead}
         </Text>
@@ -288,9 +315,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dropCap: {
+    position: 'absolute',
+    left: 0,
+    // hang below the cap box so the glyph's baseline meets the text baseline
+    bottom: -9,
     fontFamily: fonts.headline,
     fontSize: 40,
-    lineHeight: 42,
     color: colors.ink,
   },
   bodyBoldInline: { fontFamily: fonts.bodyBold, fontSize: 13.5 },
