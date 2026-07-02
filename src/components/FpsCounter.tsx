@@ -67,9 +67,8 @@ const styles = StyleSheet.create({
   text: {
     position: 'absolute',
     left: 0,
+    right: 0,
     zIndex: 9999,
-    paddingLeft: 18,
-    paddingRight: 12,
     paddingVertical: 3,
     // paper-on-paper: masks scrolling body text behind the mark without
     // reading as an overlay chip
@@ -78,6 +77,6 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     letterSpacing: 1.2,
     fontVariant: ['tabular-nums'],
-    textAlign: 'left',
+    textAlign: 'center',
   },
 });
