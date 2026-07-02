@@ -2,12 +2,22 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticlePage } from '../components/ArticlePage';
 import { ARTICLES, type Article } from '../data/articles';
 import { CrinkleOverlay } from '../effects/CrinkleOverlay';
 import { CrumpleOverlay } from '../effects/CrumpleOverlay';
+import {
+  OverscrollOverlay,
+  overscrollAmount,
+  type OverscrollWiring,
+} from '../effects/OverscrollOverlay';
 import { usePageGestures, type CrinkleGestureState } from '../engine/usePageGestures';
 import { useCrumpleGesture, type CrumpleState } from '../engine/useCrumpleGesture';
 import { useSnapshot } from '../engine/useSnapshot';
@@ -96,6 +106,21 @@ export function NewsStack() {
     hasPrev,
   });
 
+  // ── overscroll crumple: scroll state written by the current page ──
+  const overscrollY = useSharedValue(0);
+  const overscrollMax = useSharedValue(0);
+  const overscrollArmed = useSharedValue(0);
+  const overscrollSeed = useSharedValue(0);
+  const overscroll: OverscrollWiring = {
+    y: overscrollY,
+    max: overscrollMax,
+    armed: overscrollArmed,
+    seed: overscrollSeed,
+  };
+  const overscrollActive = useDerivedValue<number>(() =>
+    overscrollAmount(overscroll) !== 0 ? 1 : 0,
+  );
+
   // ── crumple delete: dragged from the invisible top-right corner handle ──
   const handleX = width - 10 - HANDLE_SIZE / 2;
   const handleY = insets.top + 4 + HANDLE_SIZE / 2;
@@ -141,6 +166,7 @@ export function NewsStack() {
     crumple.active.value = 0;
     crumple.binRise.value = 0;
     crumpleSettling.value = 0;
+    overscrollArmed.value = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, articles]);
 
@@ -170,6 +196,8 @@ export function NewsStack() {
               total={articles.length}
               crinkle={state}
               crumple={crumple}
+              overscrollActive={overscrollActive}
+              overscroll={isCurrent ? overscroll : undefined}
               shouldHide={article.id === snapArticleId}
               pageRef={isCurrent ? snapshot.pageRef : undefined}
             />
@@ -177,6 +205,12 @@ export function NewsStack() {
         </View>
       </GestureDetector>
       <CrinkleOverlay image={snapshot.image} state={state} width={width} height={height} />
+      <OverscrollOverlay
+        image={snapshot.image}
+        wiring={overscroll}
+        width={width}
+        height={height}
+      />
       <CrumpleOverlay
         image={snapshot.image}
         state={crumple}
@@ -199,6 +233,10 @@ interface PageHolderProps {
   total: number;
   crinkle: CrinkleGestureState;
   crumple: CrumpleState;
+  /** 1 while the overscroll crumple overlay is drawing. */
+  overscrollActive: SharedValue<number>;
+  /** Scroll wiring — only the current page writes it. */
+  overscroll?: OverscrollWiring;
   /** True only for the article frozen in the current snapshot. */
   shouldHide: boolean;
   pageRef?: React.RefObject<View | null>;
@@ -210,19 +248,31 @@ function PageHolder({
   total,
   crinkle,
   crumple,
+  overscrollActive,
+  overscroll,
   shouldHide,
   pageRef,
 }: PageHolderProps) {
   const style = useAnimatedStyle(
     () => ({
-      opacity: shouldHide && (crinkle.active.value || crumple.active.value) ? 0 : 1,
+      opacity:
+        shouldHide &&
+        (crinkle.active.value || crumple.active.value || overscrollActive.value)
+          ? 0
+          : 1,
     }),
     [shouldHide],
   );
 
   return (
     <Animated.View style={[styles.pageHolder, style]}>
-      <ArticlePage ref={pageRef} article={article} page={page} total={total} />
+      <ArticlePage
+        ref={pageRef}
+        article={article}
+        page={page}
+        total={total}
+        overscroll={overscroll}
+      />
     </Animated.View>
   );
 }

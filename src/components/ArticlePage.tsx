@@ -1,9 +1,13 @@
 import { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Article } from '../data/articles';
+import type { OverscrollWiring } from '../effects/OverscrollOverlay';
 import { colors, fonts, layout } from '../theme';
+
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const EDITION_DATE = 'Wednesday, July 2, 2026';
 
@@ -12,7 +16,8 @@ interface Props {
   /** 1-based position of this page in the paper, and the page count. */
   page: number;
   total: number;
-  onScrollOffset?: (y: number) => void;
+  /** Wired only on the current page — feeds the overscroll crumple. */
+  overscroll?: OverscrollWiring;
 }
 
 /**
@@ -21,7 +26,7 @@ interface Props {
  * so everything that should distort — paper color, grain, text — lives inside it.
  */
 export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
-  { article, page, total, onScrollOffset },
+  { article, page, total, overscroll },
   ref,
 ) {
   const insets = useSafeAreaInsets();
@@ -31,10 +36,35 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
   const leftCol = rest.slice(0, split);
   const rightCol = rest.slice(split);
 
+  // UI-thread scroll state for the overscroll crumple. Arming happens at
+  // drag START: the effect only runs for a pull that began at the edge, so
+  // the touch-down snapshot is guaranteed to match the frozen content.
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      if (!overscroll) return;
+      overscroll.y.value = e.contentOffset.y;
+      overscroll.max.value = Math.max(
+        0,
+        e.contentSize.height - e.layoutMeasurement.height,
+      );
+    },
+    onBeginDrag: (e) => {
+      if (!overscroll) return;
+      const max = Math.max(0, e.contentSize.height - e.layoutMeasurement.height);
+      overscroll.y.value = e.contentOffset.y;
+      overscroll.max.value = max;
+      let armed = 0;
+      if (e.contentOffset.y <= 2) armed |= 1;
+      if (e.contentOffset.y >= max - 2) armed |= 2;
+      overscroll.armed.value = armed;
+      overscroll.seed.value = Math.random() * 100;
+    },
+  });
+
   return (
     <View ref={ref} collapsable={false} style={styles.page}>
       <Image source={require('../../assets/paper-grain.png')} style={styles.grain} resizeMode="repeat" />
-      <ScrollView
+      <AnimatedScrollView
         style={styles.scroll}
         contentContainerStyle={{
           paddingTop: insets.top + 6,
@@ -42,8 +72,8 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
           paddingHorizontal: layout.pageGutter,
         }}
         showsVerticalScrollIndicator={false}
-        onScroll={(e) => onScrollOffset?.(e.nativeEvent.contentOffset.y)}
-        scrollEventThrottle={32}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
         {/* ─── Masthead ─── */}
         <View style={styles.topRule} />
@@ -117,7 +147,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         {/* ─── End slug ─── */}
         <Text style={styles.endSlug}>✦ ✦ ✦</Text>
         <Text style={styles.footer}>THE DAILY CRUMPLE — ALL THE NEWS THAT’S FIT TO FOLD</Text>
-      </ScrollView>
+      </AnimatedScrollView>
 
       {/* ─── Corner perforation — the delete affordance, printed on the page
           like a coupon cutout. Sits under the invisible drag handle; tearing
