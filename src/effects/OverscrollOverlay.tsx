@@ -18,6 +18,13 @@ export interface OverscrollWiring {
   max: SharedValue<number>;
   /** Bitmask set at drag start: 1 = began at top edge, 2 = at bottom edge. */
   armed: SharedValue<number>;
+  /**
+   * 1 once a fresh edge snapshot landed for a momentum overscroll (a fling
+   * coasting into the edge with no finger down). Cleared when back in bounds.
+   */
+  ready: SharedValue<number>;
+  /** Warp ease-in (0→1) masking the momentum takeover; 1 for armed drags. */
+  ramp: SharedValue<number>;
   /** Per-drag fold seed. */
   seed: SharedValue<number>;
 }
@@ -27,8 +34,19 @@ export function overscrollAmount(w: OverscrollWiring): number {
   'worklet';
   const y = w.y.value;
   const m = w.max.value;
-  if (w.armed.value & 1 && y < -0.5) return -y;
-  if (w.armed.value & 2 && y > m + 0.5) return m - y;
+  if (y < -0.5) return -y;
+  if (y > m + 0.5) return m - y;
+  return 0;
+}
+
+/** 1 while the crumple layer should draw (and the live page hide). */
+export function overscrollShowing(w: OverscrollWiring): number {
+  'worklet';
+  const over = overscrollAmount(w);
+  if (over === 0) return 0;
+  if (w.ready.value) return 1; // momentum: fresh edge snapshot landed
+  if (over > 0 && w.armed.value & 1) return 1;
+  if (over < 0 && w.armed.value & 2) return 1;
   return 0;
 }
 
@@ -48,13 +66,12 @@ interface Props {
  * (sitting at the edge, identical to the snapshot) shows again seamlessly.
  */
 export function OverscrollOverlay({ image, wiring, width, height }: Props) {
-  const opacity = useDerivedValue(() =>
-    overscrollAmount(wiring) !== 0 ? 1 : 0,
-  );
+  const opacity = useDerivedValue(() => overscrollShowing(wiring));
 
   const uniforms = useDerivedValue(() => ({
     uRes: [width, height],
-    uOver: overscrollAmount(wiring),
+    // ramp eases the warp in when a momentum snapshot takes over mid-bounce
+    uOver: overscrollAmount(wiring) * wiring.ramp.value,
     uSeed: wiring.seed.value,
   }));
 
