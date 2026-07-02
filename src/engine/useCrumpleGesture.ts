@@ -134,13 +134,18 @@ export function useCrumpleGesture(opts: Options) {
         });
       } else {
         binRise.value = withTiming(0, { duration: 240 });
-        t.value = withSpring(0, { damping: 20, stiffness: 200 }, (finished) => {
-          if (finished) {
-            active.value = 0;
-            settling.value = 0;
-            scheduleOnRN(cancel);
-          }
-        });
+        // overshootClamping: the sheet relaxes flat and stops — no re-bulge
+        t.value = withSpring(
+          0,
+          { damping: 24, stiffness: 200, overshootClamping: true },
+          (finished) => {
+            if (finished) {
+              active.value = 0;
+              settling.value = 0;
+              scheduleOnRN(cancel);
+            }
+          },
+        );
       }
     });
 

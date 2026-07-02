@@ -82,11 +82,12 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
   }
   faces = next;
 
-  // ── crumple: radial displacement per unique vertex (facets stay welded),
-  // plus a few deep dents so the silhouette is lumpy, not spherical ──
-  const radii = verts.map(() => 1 + (rand() - 0.5) * 0.72);
-  for (let d = 0; d < 4; d++) {
-    radii[Math.floor(rand() * radii.length)] *= 0.62;
+  // ── crumple: radial displacement per unique vertex (facets stay welded).
+  // Kept shallow — a paper ball is ROUND with many small creases; deep
+  // displacement reads as a rock. A couple of soft dents break the sphere.
+  const radii = verts.map(() => 1 + (rand() - 0.5) * 0.26);
+  for (let d = 0; d < 3; d++) {
+    radii[Math.floor(rand() * radii.length)] *= 0.86;
   }
   const displaced = verts.map(([x, y, z], i) => [
     x * radii[i],
