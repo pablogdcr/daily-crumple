@@ -180,9 +180,11 @@ export function NewsStack() {
         width={width}
         height={height}
       />
-      {/* invisible delete handle — grabbing this corner crumples the page */}
+      {/* invisible delete handle — grabbing this corner crumples the page.
+          collapsable={false}: RN view-flattening would remove this empty
+          View, leaving the gesture with no native view to hit-test */}
       <GestureDetector gesture={binPan}>
-        <View style={[styles.handle, { top: insets.top + 4 }]} />
+        <View collapsable={false} style={[styles.handle, { top: insets.top + 4 }]} />
       </GestureDetector>
     </View>
   );
