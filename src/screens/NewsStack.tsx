@@ -5,7 +5,6 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticlePage } from '../components/ArticlePage';
-import { BIN_SIZE, BinIcon } from '../components/BinIcon';
 import { ARTICLES, type Article } from '../data/articles';
 import { CrinkleOverlay } from '../effects/CrinkleOverlay';
 import { CrumpleOverlay } from '../effects/CrumpleOverlay';
@@ -13,6 +12,9 @@ import { usePageGestures, type CrinkleGestureState } from '../engine/usePageGest
 import { useCrumpleGesture, type CrumpleState } from '../engine/useCrumpleGesture';
 import { useSnapshot } from '../engine/useSnapshot';
 import { colors } from '../theme';
+
+/** Hit area of the invisible top-right delete handle. */
+const HANDLE_SIZE = 64;
 
 /**
  * The deck of newspaper pages. Exactly two pages are mounted: the current one
@@ -94,16 +96,19 @@ export function NewsStack() {
     hasPrev,
   });
 
-  // ── crumple delete ──
-  const binX = width - 10 - BIN_SIZE / 2;
-  const binY = insets.top + 4 + BIN_SIZE / 2;
+  // ── crumple delete: dragged from the invisible top-right corner handle ──
+  const handleX = width - 10 - HANDLE_SIZE / 2;
+  const handleY = insets.top + 4 + HANDLE_SIZE / 2;
 
   const chooseUnderForDelete = useCallback(() => {
     chooseUnder(index < articles.length - 1 ? -1 : 1);
   }, [chooseUnder, index, articles.length]);
 
-  const arrive = useCallback(() => {
+  const land = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const arrive = useCallback(() => {
     const wasLast = index >= articles.length - 1;
     setArticles((prev) => prev.filter((a) => a.id !== currentArticle.id));
     setIndex(wasLast ? Math.max(0, index - 1) : index);
@@ -117,11 +122,12 @@ export function NewsStack() {
   } = useCrumpleGesture({
     takeSnapshot,
     chooseUnder: chooseUnderForDelete,
+    land,
     arrive,
     cancel,
     canDelete,
-    binX,
-    binY,
+    handleX,
+    handleY,
   });
 
   // After the index/articles swap has rendered, the old page is unmounted —
@@ -133,6 +139,7 @@ export function NewsStack() {
     crumple.t.value = 0;
     crumple.throwU.value = 0;
     crumple.active.value = 0;
+    crumple.binRise.value = 0;
     crumpleSettling.value = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, articles]);
@@ -172,13 +179,10 @@ export function NewsStack() {
         state={crumple}
         width={width}
         height={height}
-        binX={binX}
-        binY={binY}
       />
+      {/* invisible delete handle — grabbing this corner crumples the page */}
       <GestureDetector gesture={binPan}>
-        <View style={[styles.bin, { top: insets.top + 4 }]}>
-          <BinIcon lidAngle={crumple.lidAngle} binScale={crumple.binScale} />
-        </View>
+        <View style={[styles.handle, { top: insets.top + 4 }]} />
       </GestureDetector>
     </View>
   );
@@ -218,10 +222,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  bin: {
+  handle: {
     position: 'absolute',
     right: 10,
-    width: BIN_SIZE,
-    height: BIN_SIZE,
+    width: HANDLE_SIZE,
+    height: HANDLE_SIZE,
   },
 });
