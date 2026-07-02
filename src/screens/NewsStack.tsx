@@ -1,11 +1,16 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticlePage } from '../components/ArticlePage';
+import { BIN_SIZE, BinIcon } from '../components/BinIcon';
 import { ARTICLES, type Article } from '../data/articles';
 import { CrinkleOverlay } from '../effects/CrinkleOverlay';
+import { CrumpleOverlay } from '../effects/CrumpleOverlay';
 import { usePageGestures, type CrinkleGestureState } from '../engine/usePageGestures';
+import { useCrumpleGesture, type CrumpleState } from '../engine/useCrumpleGesture';
 import { useSnapshot } from '../engine/useSnapshot';
 import { colors } from '../theme';
 
@@ -17,7 +22,8 @@ import { colors } from '../theme';
  */
 export function NewsStack() {
   const { width, height } = useWindowDimensions();
-  const [articles] = useState<Article[]>(ARTICLES);
+  const insets = useSafeAreaInsets();
+  const [articles, setArticles] = useState<Article[]>(ARTICLES);
   const [index, setIndex] = useState(0);
   const [underIndex, setUnderIndex] = useState<number | null>(null);
   // id of the article currently frozen in the snapshot — the only page that hides
@@ -27,10 +33,12 @@ export function NewsStack() {
 
   const hasNext = useSharedValue(true);
   const hasPrev = useSharedValue(false);
+  const canDelete = useSharedValue(true);
   useEffect(() => {
     hasNext.value = index < articles.length - 1;
     hasPrev.value = index > 0;
-  }, [index, articles, hasNext, hasPrev]);
+    canDelete.value = articles.length > 1;
+  }, [index, articles, hasNext, hasPrev, canDelete]);
 
   const currentArticle = articles[index];
 
@@ -74,14 +82,48 @@ export function NewsStack() {
     hasPrev,
   });
 
-  // After the index swap has rendered, the old page is unmounted — only now is
-  // it safe to reset the gesture state (un-hiding nothing, overlay off).
+  // ── crumple delete ──
+  const binX = width - 10 - BIN_SIZE / 2;
+  const binY = insets.top + 4 + BIN_SIZE / 2;
+
+  const chooseUnderForDelete = useCallback(() => {
+    chooseUnder(index < articles.length - 1 ? -1 : 1);
+  }, [chooseUnder, index, articles.length]);
+
+  const arrive = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const wasLast = index >= articles.length - 1;
+    setArticles((prev) => prev.filter((a) => a.id !== currentArticle.id));
+    setIndex(wasLast ? Math.max(0, index - 1) : index);
+    setUnderIndex(null);
+  }, [index, articles.length, currentArticle.id]);
+
+  const {
+    binPan,
+    state: crumple,
+    settling: crumpleSettling,
+  } = useCrumpleGesture({
+    takeSnapshot,
+    chooseUnder: chooseUnderForDelete,
+    arrive,
+    cancel,
+    canDelete,
+    binX,
+    binY,
+  });
+
+  // After the index/articles swap has rendered, the old page is unmounted —
+  // only now is it safe to reset gesture state (un-hiding nothing, overlays off).
   useEffect(() => {
     state.progress.value = 0;
     state.active.value = 0;
     state.settling.value = 0;
+    crumple.t.value = 0;
+    crumple.throwU.value = 0;
+    crumple.active.value = 0;
+    crumpleSettling.value = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  }, [index, articles]);
 
   const underArticle =
     underIndex != null ? articles[underIndex] : articles[index + 1] ?? null;
@@ -104,7 +146,8 @@ export function NewsStack() {
             <PageHolder
               key={article.id}
               article={article}
-              gestureState={state}
+              crinkle={state}
+              crumple={crumple}
               shouldHide={article.id === snapArticleId}
               pageRef={isCurrent ? snapshot.pageRef : undefined}
             />
@@ -112,23 +155,36 @@ export function NewsStack() {
         </View>
       </GestureDetector>
       <CrinkleOverlay image={snapshot.image} state={state} width={width} height={height} />
+      <CrumpleOverlay
+        image={snapshot.image}
+        state={crumple}
+        width={width}
+        height={height}
+        binX={binX}
+        binY={binY}
+      />
+      <GestureDetector gesture={binPan}>
+        <View style={[styles.bin, { top: insets.top + 4 }]}>
+          <BinIcon lidAngle={crumple.lidAngle} binScale={crumple.binScale} />
+        </View>
+      </GestureDetector>
     </View>
   );
 }
 
 interface PageHolderProps {
   article: Article;
-  gestureState: CrinkleGestureState;
+  crinkle: CrinkleGestureState;
+  crumple: CrumpleState;
   /** True only for the article frozen in the current snapshot. */
   shouldHide: boolean;
   pageRef?: React.RefObject<View | null>;
 }
 
-function PageHolder({ article, gestureState, shouldHide, pageRef }: PageHolderProps) {
-  const { active } = gestureState;
+function PageHolder({ article, crinkle, crumple, shouldHide, pageRef }: PageHolderProps) {
   const style = useAnimatedStyle(
     () => ({
-      opacity: shouldHide && active.value ? 0 : 1,
+      opacity: shouldHide && (crinkle.active.value || crumple.active.value) ? 0 : 1,
     }),
     [shouldHide],
   );
@@ -149,5 +205,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  bin: {
+    position: 'absolute',
+    right: 10,
+    width: BIN_SIZE,
+    height: BIN_SIZE,
   },
 });
