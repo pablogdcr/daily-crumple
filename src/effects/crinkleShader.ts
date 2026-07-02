@@ -55,9 +55,6 @@ half4 main(float2 p) {
   // The pull is anchored to the finger's CURRENT row, not where the gesture
   // started — moving the finger vertically mid-swipe moves the grip with it.
   float dragX = uProgress * uRes.x;
-  // vertical cloth follow: the grip carries the page up/down with the finger
-  // (gated on progress so a cancel still springs back to a clean page)
-  float dragY = (uTouch.y - uOrigin.y) * smoothstep(0.0, 0.12, uProgress);
   float rowFall = exp(-abs(p.y - uTouch.y) / (uRes.y * 0.35));
   // once the release animation runs, the lagging cloth catches up and the
   // whole page departs
@@ -66,19 +63,31 @@ half4 main(float2 p) {
   float pull = dragX * lag * (1.0 + 0.4 * catchup);
 
   // ── top/bottom pinning: the sheet stays attached to the screen's top and
-  // bottom rails — every vertical displacement fades out toward the edges so
+  // bottom rails — vertical fold/gather offsets fade out toward the edges so
   // the page's horizontal borders never peel into view ──
   float pin = smoothstep(0.0, uRes.y * 0.16, p.y)
             * smoothstep(0.0, uRes.y * 0.16, uRes.y - p.y);
 
+  // ── vertical grip: a bijective stretch of the sheet between the rails.
+  // The row under the finger shows the row that was grabbed; the material
+  // above compresses / below stretches (and vice versa). The mapping covers
+  // exactly [0, h] → [0, h], so no sample ever leaves the page — nothing is
+  // cut, the edges stay attached. Gated on progress so a cancel springs back
+  // to the identity mapping (oy == ty ⇒ both segments have slope 1). ──
+  float gate = smoothstep(0.0, 0.12, uProgress);
+  float ty = clamp(uTouch.y, uRes.y * 0.08, uRes.y * 0.92);
+  float oy = mix(ty, clamp(uOrigin.y, uRes.y * 0.08, uRes.y * 0.92), gate);
+
   float2 sp = p;
   sp.x -= uDir * pull;                     // backward map of the cloth motion
-  sp.y -= dragY * lag * pin;
+  sp.y = p.y < ty
+    ? p.y * oy / ty
+    : oy + (uRes.y - oy) * (p.y - ty) / (uRes.y - ty);
 
   // ── gather: pulled cloth draws material in toward the grabbed row ──
   float gatherK = 0.22 * uProgress * exp(-abs(p.x - uTouch.x) / (uRes.x * 0.55))
                 * pin;
-  sp.y = uTouch.y + (sp.y - uTouch.y) * (1.0 + gatherK);
+  sp.y = oy + (sp.y - oy) * (1.0 + gatherK);
 
   // ── fold displacement (compression along the drag axis, wavy silhouette) ──
   float h  = height(sp);
