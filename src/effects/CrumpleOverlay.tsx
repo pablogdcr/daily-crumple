@@ -66,10 +66,11 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
   const cy = height / 2;
   const ballR = 0.145 * width;
   // the throw drops the ball into the mouth of the bin risen at the bottom;
-  // the target sits below the rim so the ball ends fully inside the can
+  // the target sits just below the rim — the ball stays visible through the
+  // transparent holes of the wire mesh
   const bin = binGeometry(width, height);
   const tgtX = bin.cx;
-  const tgtY = bin.mouthY + bin.ry + ballR;
+  const tgtY = bin.mouthY + bin.ry + ballR * 0.6;
   // control point above the chord — a small up-toss before the drop
   const ctrlX = cx + 26;
   const ctrlY = cy - 0.17 * height;
@@ -80,10 +81,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
     const tt = state.t.value;
-    // u ≥ 0.985: the ball has sunk below the bin's rim, fully hidden by its
-    // front wall — stop drawing so it doesn't reappear when the bin sinks
-    if (!mesh || u >= 0.985 || (u <= 0.001 && state.active.value < 0.5))
-      return EMPTY_BALL;
+    if (!mesh || (u <= 0.001 && state.active.value < 0.5)) return EMPTY_BALL;
 
     // fold progress spans the WHOLE gesture: 0 = the exact flat page
     const m = Math.min(Math.max(tt, 0), 1);
@@ -96,7 +94,10 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
     // before the throw the ball sits under the finger (cx/cy settle to the
     // screen center during the confirm animation), then flies the Bézier arc
     const bx = u > 0.001 ? iu * iu * cx + 2 * iu * u * ctrlX + u * u * tgtX : state.cx.value;
-    const by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * tgtY : state.cy.value;
+    let by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * tgtY : state.cy.value;
+    // once landed, the ball rides the sinking basket down (it stays visible
+    // through the mesh) and leaves the screen with it
+    if (u > 0.99) by += (1 - state.binRise.value) * bin.hiddenY;
     // slight shrink only — the can is near the viewer, not across the room
     const pr = ballR * (1 - 0.3 * u);
 

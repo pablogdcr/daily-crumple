@@ -1,7 +1,22 @@
-import { Group, Oval, Path, vec } from '@shopify/react-native-skia';
+import {
+  Group,
+  Image as BinImage,
+  Skia,
+  useImage,
+  vec,
+} from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
-import { colors } from '../theme';
+
+// rim ellipse of the wire-mesh basket photo, measured in the cropped
+// asset's own pixel grid (assets/bin.png, white background keyed out so
+// the mesh holes are transparent)
+const IMG_W = 264;
+const IMG_H = 301;
+const RIM_CX = 132;
+const RIM_CY = 51;
+const RIM_RX = 130;
+const RIM_RY = 50;
 
 export interface BinGeometry {
   /** Mouth center. */
@@ -16,14 +31,14 @@ export interface BinGeometry {
 
 /** Shared between the bin drawing and the ball's throw target. */
 export function binGeometry(width: number, height: number): BinGeometry {
-  const rx = width * 0.3;
-  const ry = width * 0.085;
+  const rx = width * 0.31;
+  const ry = (RIM_RY * rx) / RIM_RX;
   const mouthY = height - width * 0.32;
-  return { cx: width / 2, mouthY, rx, ry, hiddenY: width * 0.32 + ry + 14 };
+  return { cx: width / 2, mouthY, rx, ry, hiddenY: height - (mouthY - ry) + 12 };
 }
 
 interface Props {
-  /** back = interior + far rim (behind the ball), front = body + near rim. */
+  /** back = behind the ball (rim + far wall), front = the near wall. */
   part: 'back' | 'front';
   /** 0 = below the screen, 1 = risen into view. */
   rise: SharedValue<number>;
@@ -34,13 +49,14 @@ interface Props {
 }
 
 /**
- * A realistic ribbed garbage can in the newspaper's etched-ink style, drawn
- * in two halves so the paper ball can fall between them: the dark interior
- * and far rim render behind the ball, the tapered body and near rim in
- * front — the ball visibly sinks INTO the can. Only the top of the can rises
- * above the bottom screen edge.
+ * The wire-mesh wastebasket photo, split around the paper ball by a clip
+ * along the near edge of the rim: everything below that curve is the
+ * basket's near wall and renders in front of the ball, the rest behind it.
+ * The mesh holes are transparent, so a ball inside stays visible through
+ * the weave. Only the top of the basket rises above the bottom screen edge.
  */
 export function TrashBin({ part, rise, pulse, width, height }: Props) {
+  const img = useImage(require('../../assets/bin.png'));
   const g = useMemo(() => binGeometry(width, height), [width, height]);
 
   const transform = useDerivedValue(() => [
@@ -48,85 +64,37 @@ export function TrashBin({ part, rise, pulse, width, height }: Props) {
     { scale: pulse.value },
   ]);
 
-  const paths = useMemo(() => {
-    const { cx, mouthY, rx, ry } = g;
-    const bottom = height + 14;
-    const taper = 0.9;
-    const bl = cx - rx * taper;
-    const br = cx + rx * taper;
-    // vertical ribs follow the body taper
-    const ribXs = [-0.66, -0.32, 0.32, 0.66].map((k) => ({
-      top: cx + rx * k,
-      bot: cx + rx * k * taper,
-    }));
-    // horizontal bands echo the mouth's curvature, shallower with depth
-    const bandAt = (f: number) => {
-      const y = mouthY + (bottom - mouthY) * f;
-      const r = rx * (1 - (1 - taper) * f);
-      return `M ${cx - r} ${y} A ${r} ${ry * 0.9} 0 0 0 ${cx + r} ${y}`;
-    };
-    return {
-      backRim: `M ${cx - rx} ${mouthY} A ${rx} ${ry} 0 0 1 ${cx + rx} ${mouthY}`,
-      body: `M ${cx - rx} ${mouthY} L ${bl} ${bottom} L ${br} ${bottom} L ${cx + rx} ${mouthY} A ${rx} ${ry} 0 0 1 ${cx - rx} ${mouthY} Z`,
-      frontRim: `M ${cx - rx - 5} ${mouthY} A ${rx + 5} ${ry + 3} 0 0 0 ${cx + rx + 5} ${mouthY} L ${cx + rx} ${mouthY} A ${rx} ${ry} 0 0 1 ${cx - rx} ${mouthY} Z`,
-      ribs: ribXs
-        .map((r) => `M ${r.top} ${mouthY + ry + 8} L ${r.bot} ${bottom}`)
-        .join(' '),
-      bands: `${bandAt(0.3)} ${bandAt(0.62)}`,
-    };
+  // near wall = everything below the inner rim's near (lower) edge
+  const frontClip = useMemo(() => {
+    const rxIn = g.rx * 0.92;
+    const ryIn = g.ry * 0.86;
+    const bottom = height + g.hiddenY + 20;
+    return Skia.Path.MakeFromSVGString(
+      `M ${g.cx - rxIn} ${g.mouthY} A ${rxIn} ${ryIn} 0 0 0 ${g.cx + rxIn} ${g.mouthY} ` +
+        `L ${g.cx + rxIn} ${bottom} L ${g.cx - rxIn} ${bottom} Z`,
+    );
   }, [g, height]);
+
+  if (!img || !frontClip) return null;
+
+  const s = g.rx / RIM_RX;
+  const rect = {
+    x: g.cx - RIM_CX * s,
+    y: g.mouthY - RIM_CY * s,
+    width: IMG_W * s,
+    height: IMG_H * s,
+  };
 
   return (
     <Group transform={transform} origin={vec(g.cx, height)}>
       {part === 'back' ? (
-        <>
-          <Oval
-            rect={{
-              x: g.cx - g.rx,
-              y: g.mouthY - g.ry,
-              width: 2 * g.rx,
-              height: 2 * g.ry,
-            }}
-            color="#2a2318"
-          />
-          <Path
-            path={paths.backRim}
-            style="stroke"
-            strokeWidth={3}
-            color={colors.ink}
-          />
-        </>
+        <Group clip={frontClip} invertClip>
+          <BinImage image={img} fit="fill" {...rect} />
+        </Group>
       ) : (
-        <>
-          <Path path={paths.body} color="#e2d6b8" />
-          <Path
-            path={paths.bands}
-            style="stroke"
-            strokeWidth={2}
-            color={colors.ink}
-            opacity={0.35}
-          />
-          <Path
-            path={paths.ribs}
-            style="stroke"
-            strokeWidth={2}
-            color={colors.ink}
-            opacity={0.45}
-          />
-          <Path
-            path={paths.body}
-            style="stroke"
-            strokeWidth={2.5}
-            color={colors.ink}
-          />
-          <Path path={paths.frontRim} color="#ece2c6" />
-          <Path
-            path={paths.frontRim}
-            style="stroke"
-            strokeWidth={2.5}
-            color={colors.ink}
-          />
-        </>
+        <Group clip={frontClip}>
+          <BinImage image={img} fit="fill" {...rect} />
+        </Group>
       )}
     </Group>
   );
