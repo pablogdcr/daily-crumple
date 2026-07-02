@@ -1,11 +1,9 @@
 import {
   BlurMask,
   Canvas,
-  Fill,
   Group,
   ImageShader,
   Oval,
-  Shader,
   Vertices,
   vec,
   type SkImage,
@@ -14,7 +12,6 @@ import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
 import type { CrumpleState } from '../engine/useCrumpleGesture';
-import { crumpleEffect } from './crumpleShader';
 import { buildPaperBallMesh } from './paperBallMesh';
 
 interface Props {
@@ -52,16 +49,18 @@ const EMPTY_BALL = {
 };
 
 /**
- * Draws the crumpling page (interactive drag — 2D crumple shader) and, once
- * the throw starts, a real 3D crumpled ball: an icosphere mesh with seeded
- * vertex displacement, flat per-face lighting, the article texture wrapped
- * around it, tumbling in true 3D along a Bézier arc into the bin. The 2D
- * shader crossfades into the mesh over the first ~12% of the throw.
+ * The whole crumple is ONE representation: 80 page scraps (mesh facets whose
+ * texture coords tile the page exactly). At t=0 they reassemble the page
+ * pixel-perfectly; as the drag progresses the page gathers toward the finger
+ * (same wrap math the old 2D shader used, now driven by fold progress) while
+ * each scrap folds — staggered — onto its facet of the displaced icosphere.
+ * No 2D→3D handoff exists: the paper you see folding IS the ball. The throw
+ * then tumbles the finished ball along a Bézier arc into the bin.
  */
 export function CrumpleOverlay({ image, state, width, height, binX, binY }: Props) {
   const mesh = useMemo(
-    () => (image ? buildPaperBallMesh(Math.random()) : null),
-    [image],
+    () => (image ? buildPaperBallMesh(Math.random(), width / height) : null),
+    [image, width, height],
   );
 
   const cx = width / 2;
@@ -71,41 +70,20 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
   const ctrlY = (cy + binY) / 2 - 170;
   const ballR = 0.19 * width;
 
-  const uniforms = useDerivedValue(() => ({
-    uRes: [width, height],
-    uCenter: [state.cx.value, state.cy.value],
-    uT: state.t.value,
-    uSeed: state.seed.value,
-  }));
+  const opacity3D = useDerivedValue(() => state.active.value);
 
-  // 2D crumple owns t 0→0.6 (page gathering + micro-folds). At t=0.6 the
-  // mesh takes over: its scraps start laid out as the gathered page — same
-  // layout the 2D shader is drawing at that instant — so the switch is
-  // invisible, and from there the actual page scraps fold into the ball.
-  const handoff = useDerivedValue(() => {
-    const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    const crumpleK = Math.min(Math.max((state.t.value - 0.6) / 0.05, 0), 1);
-    return Math.max(throwK, crumpleK);
-  });
-  const opacity2D = useDerivedValue(() => {
-    const throwK = Math.min(Math.max(state.throwU.value / 0.12, 0), 1);
-    const fadeK = Math.min(Math.max((state.t.value - 0.6) / 0.08, 0), 1);
-    return state.active.value * (1 - Math.max(throwK, fadeK));
-  });
-  const opacity3D = useDerivedValue(() => state.active.value * handoff.value);
-
-  // ── 3D ball: rotate, light, cull, depth-sort, project — per frame ──
+  // ── the folding page: gather, fold, light, depth-sort, project per frame ──
   const ball = useDerivedValue(() => {
     const u = state.throwU.value;
     const tt = state.t.value;
-    if (!mesh || (u <= 0.001 && tt < 0.595)) return EMPTY_BALL;
+    if (!mesh || (u <= 0.001 && state.active.value < 0.5)) return EMPTY_BALL;
 
-    // fold progress: 0 = scraps laid out as the gathered page, 1 = ball
-    const m = Math.min(Math.max((tt - 0.6) / 0.4, 0), 1);
-    // the 2D shader's gather at t=0.6 — the mesh start state matches it so
-    // the handoff doesn't jump (morph=smoothstep(0,.9,.6), k=mix(1,.52,…))
-    const GATHER = 0.741;
-    const KINV = 1 / 0.739;
+    // fold progress spans the WHOLE gesture: 0 = the exact flat page
+    const m = Math.min(Math.max(tt, 0), 1);
+    // continuous gather of the un-folded paper toward the finger — identity
+    // at m=0 (k=1, R=E), tight wrap by m=1: same math as the old 2D shader
+    const gather = m * (2 - m);
+    const KINV = 1 / (1 - 0.48 * gather);
 
     const iu = 1 - u;
     // before the throw the ball sits under the finger (cx/cy settle to the
@@ -114,8 +92,9 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     const by = u > 0.001 ? iu * iu * cy + 2 * iu * u * ctrlY + u * u * binY : state.cy.value;
     const pr = ballR * (1 - 0.84 * u);
 
-    // tumble: fixed axis, angle driven by the flight
-    const angle = u * 5.5 + state.seed.value;
+    // tumble: fixed axis, angle driven by the flight ONLY — during the fold
+    // the wrap stays oriented to the viewer (page centre on the front pole)
+    const angle = u * 5.5;
     const al = Math.hypot(0.3, 1, 0.25);
     const kx = 0.3 / al;
     const ky = 1 / al;
@@ -170,7 +149,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
         const ex = dxp > 1e-4 ? (width - bx) / dxp : dxp < -1e-4 ? -bx / dxp : 1e8;
         const ey = dyp > 1e-4 ? (height - by) / dyp : dyp < -1e-4 ? -by / dyp : 1e8;
         const E = Math.max(Math.min(ex, ey), 1);
-        const R = E + (ballR - E) * GATHER;
+        const R = E + (ballR - E) * gather;
         const rStart = R * Math.pow(Math.min(rs / E, 1), KINV);
         const sx = (dxp * rStart) / pr;
         const sy = (dyp * rStart) / pr;
@@ -262,9 +241,9 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     };
   });
   const shadowOpacity = useDerivedValue(() => {
-    // shadow deepens as the page lifts and balls up (fold progress), not
-    // with the layer handoff — a flat page shouldn't cast a ball's shadow
-    const fold = Math.min(Math.max((state.t.value - 0.6) / 0.4, 0), 1);
+    // shadow deepens as the paper lifts off the page and balls up —
+    // a flat page shouldn't cast a ball's shadow
+    const fold = Math.min(Math.max((state.t.value - 0.35) / 0.65, 0), 1);
     const k = Math.max(fold, Math.min(Math.max(state.throwU.value / 0.12, 0), 1));
     return state.active.value * k * 0.25 * (1 - 0.45 * state.throwU.value);
   });
@@ -276,17 +255,6 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
           <Oval rect={shadowRect} color="black" opacity={shadowOpacity}>
             <BlurMask blur={16} style="normal" />
           </Oval>
-          <Group opacity={opacity2D}>
-            <Fill>
-              <Shader source={crumpleEffect} uniforms={uniforms}>
-                <ImageShader
-                  image={image}
-                  fit="fill"
-                  rect={{ x: 0, y: 0, width, height }}
-                />
-              </Shader>
-            </Fill>
-          </Group>
           <Group opacity={opacity3D}>
             {/* pass 1: the article texture mapped onto the facets, unlit —
                 Vertices' own colors+blendMode combine unreliably, so lighting

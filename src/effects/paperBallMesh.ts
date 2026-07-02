@@ -35,7 +35,8 @@ function mulberry32(seed: number) {
   };
 }
 
-export function buildPaperBallMesh(seed: number): PaperBallMesh {
+/** @param aspect page width / height — used to measure page angles in screen space */
+export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh {
   const rand = mulberry32(Math.floor(seed * 1e6) + 1);
 
   // ── icosahedron ──
@@ -105,26 +106,99 @@ export function buildPaperBallMesh(seed: number): PaperBallMesh {
       pageTris.push([[x1, y1], [x0, y1], [x1, y0]]);
     }
   }
-  // seeded shuffle: which scrap of the page lands on which facet of the ball
-  for (let i = pageTris.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [pageTris[i], pageTris[j]] = [pageTris[j], pageTris[i]];
+
+  // ── coherent wrap assignment: the page rolls onto the sphere ──
+  // Page center → front pole, page rim → wraps to the back. Neighbouring
+  // scraps land on neighbouring facets, so mid-fold the sheet stays
+  // contiguous (thin creases, not holes) — like wrapping paper round a ball.
+  // Angles are measured in screen space (v scaled by 1/aspect).
+  const rhoMax = Math.hypot(0.5, 0.5 / aspect);
+  const pageInfo = pageTris.map((tri, idx) => {
+    const cu = (tri[0][0] + tri[1][0] + tri[2][0]) / 3 - 0.5;
+    const cv = ((tri[0][1] + tri[1][1] + tri[2][1]) / 3 - 0.5) / aspect;
+    return { idx, theta: Math.atan2(cv, cu), rho: Math.hypot(cu, cv) / rhoMax };
+  });
+  const facetInfo = faces.map((face, idx) => {
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    for (const vi of face) {
+      cx += verts[vi][0];
+      cy += verts[vi][1];
+      cz += verts[vi][2];
+    }
+    const l = Math.hypot(cx, cy, cz) || 1;
+    return {
+      idx,
+      theta: Math.atan2(cy / l, cx / l),
+      rho: Math.acos(Math.max(-1, Math.min(1, cz / l))) / Math.PI,
+    };
+  });
+  // greedy nearest-match, front facets first (they claim the page center)
+  facetInfo.sort((a, b) => a.rho - b.rho);
+  const taken = new Array<boolean>(pageTris.length).fill(false);
+  const assigned = new Array<number>(faces.length).fill(0);
+  for (const fi of facetInfo) {
+    let best = -1;
+    let bestCost = Infinity;
+    for (const pi of pageInfo) {
+      if (taken[pi.idx]) continue;
+      let dth = Math.abs(pi.theta - fi.theta);
+      if (dth > Math.PI) dth = 2 * Math.PI - dth;
+      const avgRho = (pi.rho + fi.rho) / 2;
+      const cost = (pi.rho - fi.rho) ** 2 + ((dth / Math.PI) * avgRho) ** 2;
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = pi.idx;
+      }
+    }
+    taken[best] = true;
+    assigned[fi.idx] = best;
   }
 
   const positions: number[] = [];
   const uvs: number[] = [];
   const stagger: number[] = [];
   faces.forEach((face, f) => {
-    // rotate the scrap↔facet vertex correspondence so text lands at varied
-    // angles on the finished ball
-    const rot = Math.floor(rand() * 3);
     for (let i = 0; i < 3; i++) {
       const [x, y, z] = displaced[face[i]];
       positions.push(x, y, z);
-      const [u, v] = pageTris[f][(i + rot) % 3];
+    }
+    const tri = pageTris[assigned[f]];
+    // pick the corner correspondence (cyclic — no mirroring) that minimises
+    // how much the scrap spins while it travels to its facet
+    const pcu = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
+    const pcv = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+    const pAng = tri.map(([u, v]) => Math.atan2((v - pcv) / aspect, u - pcu));
+    let fcx = 0;
+    let fcy = 0;
+    for (const vi of face) {
+      fcx += verts[vi][0];
+      fcy += verts[vi][1];
+    }
+    const fAng = face.map((vi) => Math.atan2(verts[vi][1] - fcy / 3, verts[vi][0] - fcx / 3));
+    let bestRot = 0;
+    let bestCost = Infinity;
+    for (let rot = 0; rot < 3; rot++) {
+      let cost = 0;
+      for (let i = 0; i < 3; i++) {
+        let da = Math.abs(fAng[i] - pAng[(i + rot) % 3]);
+        if (da > Math.PI) da = 2 * Math.PI - da;
+        cost += da;
+      }
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestRot = rot;
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      const [u, v] = tri[(i + bestRot) % 3];
       uvs.push(u, v);
     }
-    stagger.push(rand() * 0.35);
+    // edges curl in first, the centre folds last — coherent waves, not
+    // random shattering; the small jitter keeps it organic
+    const rho = pageInfo[assigned[f]].rho;
+    stagger.push(0.05 + 0.32 * (1 - rho) + 0.06 * rand());
   });
 
   return { positions, uvs, stagger, faceCount: faces.length };
