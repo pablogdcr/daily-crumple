@@ -59,7 +59,7 @@ export function CrumpleOverlay({ image, state, width, height, binX, binY }: Prop
     ];
   });
 
-  const ballR = 0.185 * width;
+  const ballR = 0.19 * width;
   const shadowRect = useDerivedValue(() => {
     const u = state.throwU.value;
     const iu = 1 - u;
