@@ -18,18 +18,20 @@ uniform float2 uRes;
 uniform float  uOver;
 uniform float  uSeed;
 
-float height(float2 p, float gripY, float amp) {
+float height(float2 p, float gripY, float amp, float reach) {
   float s = p.y - gripY;                    // distance along the pull axis
   float q = p.x - uRes.x * 0.5;
   // ridge lines are never straight — wobble along x, seeded per drag
   float phase = 0.9 * sin(q * 0.014 + uSeed)
               + 0.5 * sin(q * 0.030 + s * 0.008 + uSeed * 1.7);
-  return amp * cos(s * 0.05 + phase) * exp(-abs(s) / (uRes.y * 0.35));
+  return amp * cos(s * 0.05 + phase) * exp(-abs(s) / reach);
 }
 
 half4 main(float2 p) {
   float v = uOver;
   float av = min(abs(v) / 150.0, 1.0);      // fold intensity 0..1
+  // a shallow bounce ripples only around the grip; a hard pull waves the page
+  float reach = uRes.y * mix(0.10, 0.35, av);
 
   // virtual grip: a row dragged with the rubber band, both edges pinned
   float grip0 = v > 0.0 ? uRes.y * 0.38 : uRes.y * 0.62;
@@ -45,19 +47,22 @@ half4 main(float2 p) {
   float pin = smoothstep(0.0, uRes.y * 0.14, p.y)
             * smoothstep(0.0, uRes.y * 0.14, uRes.y - p.y);
   float amp = av * 16.0;
-  sp.y += 0.9 * height(sp, oy, amp) * pin;
-  sp.x += 0.5 * height(sp + float2(11.0, 0.0), oy, amp);
+  sp.y += 0.9 * height(sp, oy, amp, reach) * pin;
+  sp.x += 0.5 * height(sp + float2(11.0, 0.0), oy, amp, reach);
 
   // shading from the fold height field
   float e  = 1.5;
-  float hc = height(sp, oy, amp);
-  float hx = height(sp + float2(e, 0.0), oy, amp) - hc;
-  float hy = height(sp + float2(0.0, e), oy, amp) - hc;
+  float hc = height(sp, oy, amp, reach);
+  float hx = height(sp + float2(e, 0.0), oy, amp, reach) - hc;
+  float hy = height(sp + float2(0.0, e), oy, amp, reach) - hc;
   float3 n = normalize(float3(-hx / e * 6.0, -hy / e * 6.0, 1.0));
   float3 L = normalize(float3(-0.35, -0.55, 0.75));
   float shade = 0.78 + 0.30 * max(dot(n, L), 0.0);
   shade += 0.08 * pow(max(reflect(-L, n).z, 0.0), 12.0);
   shade -= 0.14 * av * smoothstep(0.0, 1.0, -hc / 14.0);
+  // normals exaggerate tiny ripples — fade the shading out entirely for
+  // shallow bounces so a small overscroll reads as a small crumple
+  shade = 1.0 + (shade - 1.0) * smoothstep(0.0, 0.45, av);
 
   half4 c = uImage.eval(clamp(sp, float2(0.0), uRes));
   return half4(c.rgb * shade, c.a);
