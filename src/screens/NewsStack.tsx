@@ -155,16 +155,19 @@ export function NewsStack() {
   ).map((a) => ({
     article: a,
     isCurrent: a.id === currentArticle.id,
+    pageNo: articles.indexOf(a) + 1,
   }));
 
   return (
     <View style={styles.root}>
       <GestureDetector gesture={crinklePan}>
         <View style={styles.deck}>
-          {pages.map(({ article, isCurrent }) => (
+          {pages.map(({ article, isCurrent, pageNo }) => (
             <PageHolder
               key={article.id}
               article={article}
+              page={pageNo}
+              total={articles.length}
               crinkle={state}
               crumple={crumple}
               shouldHide={article.id === snapArticleId}
@@ -192,6 +195,8 @@ export function NewsStack() {
 
 interface PageHolderProps {
   article: Article;
+  page: number;
+  total: number;
   crinkle: CrinkleGestureState;
   crumple: CrumpleState;
   /** True only for the article frozen in the current snapshot. */
@@ -199,7 +204,15 @@ interface PageHolderProps {
   pageRef?: React.RefObject<View | null>;
 }
 
-function PageHolder({ article, crinkle, crumple, shouldHide, pageRef }: PageHolderProps) {
+function PageHolder({
+  article,
+  page,
+  total,
+  crinkle,
+  crumple,
+  shouldHide,
+  pageRef,
+}: PageHolderProps) {
   const style = useAnimatedStyle(
     () => ({
       opacity: shouldHide && (crinkle.active.value || crumple.active.value) ? 0 : 1,
@@ -209,7 +222,7 @@ function PageHolder({ article, crinkle, crumple, shouldHide, pageRef }: PageHold
 
   return (
     <Animated.View style={[styles.pageHolder, style]}>
-      <ArticlePage ref={pageRef} article={article} />
+      <ArticlePage ref={pageRef} article={article} page={page} total={total} />
     </Animated.View>
   );
 }

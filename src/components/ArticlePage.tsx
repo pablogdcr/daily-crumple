@@ -9,6 +9,9 @@ const EDITION_DATE = 'Wednesday, July 2, 2026';
 
 interface Props {
   article: Article;
+  /** 1-based position of this page in the paper, and the page count. */
+  page: number;
+  total: number;
   onScrollOffset?: (y: number) => void;
 }
 
@@ -18,7 +21,7 @@ interface Props {
  * so everything that should distort — paper color, grain, text — lives inside it.
  */
 export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
-  { article, onScrollOffset },
+  { article, page, total, onScrollOffset },
   ref,
 ) {
   const insets = useSafeAreaInsets();
@@ -44,10 +47,13 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
       >
         {/* ─── Masthead ─── */}
         <View style={styles.topRule} />
+        {/* right slot stays empty — the tear-here coupon owns that corner */}
         <View style={styles.dateRow}>
-          <Text style={styles.dateText}>VOL. CCXIV — No. 42</Text>
-          <Text style={styles.dateText}>{EDITION_DATE.toUpperCase()}</Text>
-          <Text style={styles.dateText}>PRICE: ONE SWIPE</Text>
+          <Text style={[styles.dateText, styles.dateLeft]}>VOL. CCXIV — No. 42</Text>
+          <Text style={[styles.dateText, styles.dateCenter]}>
+            {`${EDITION_DATE.toUpperCase()} — PAGE ${page} OF ${total}`}
+          </Text>
+          <Text style={[styles.dateText, styles.dateRight]} />
         </View>
         <Text style={styles.masthead} numberOfLines={1} adjustsFontSizeToFit>
           The Daily Crumple
@@ -112,6 +118,19 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         <Text style={styles.endSlug}>✦ ✦ ✦</Text>
         <Text style={styles.footer}>THE DAILY CRUMPLE — ALL THE NEWS THAT’S FIT TO FOLD</Text>
       </ScrollView>
+
+      {/* ─── Corner perforation — the delete affordance, printed on the page
+          like a coupon cutout. Sits under the invisible drag handle; tearing
+          along it crumples the page into the bin. ─── */}
+      <View pointerEvents="none" style={[styles.tearCorner, { top: insets.top + 16 }]}>
+        <View style={styles.tearRow}>
+          <Text style={styles.tearScissors}>✄</Text>
+          {Array.from({ length: 9 }, (_, i) => (
+            <View key={i} style={styles.tearDash} />
+          ))}
+        </View>
+        <Text style={styles.tearCaption}>TEAR HERE</Text>
+      </View>
     </View>
   );
 });
@@ -151,6 +170,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     color: colors.inkSoft,
   },
+  dateLeft: { flex: 1.25, textAlign: 'left' },
+  dateCenter: { flex: 2.3, textAlign: 'center' },
+  dateRight: { flex: 0.75, textAlign: 'right' },
   masthead: {
     fontFamily: fonts.masthead,
     fontSize: 46,
@@ -263,5 +285,38 @@ const styles = StyleSheet.create({
     color: colors.inkFaint,
     textAlign: 'center',
     marginTop: 8,
+  },
+
+  // perforation across the top-right corner, rotated onto the diagonal the
+  // delete drag follows
+  tearCorner: {
+    position: 'absolute',
+    right: -10,
+    width: 120,
+    alignItems: 'center',
+    transform: [{ rotate: '45deg' }],
+  },
+  tearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tearScissors: {
+    fontSize: 11,
+    color: colors.inkSoft,
+    marginRight: 2,
+  },
+  tearDash: {
+    width: 6,
+    height: 1,
+    backgroundColor: colors.inkSoft,
+    opacity: 0.55,
+  },
+  tearCaption: {
+    fontFamily: fonts.body,
+    fontSize: 7.5,
+    letterSpacing: 1.6,
+    color: colors.inkFaint,
+    marginTop: 2,
   },
 });
