@@ -196,10 +196,16 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
       const [u, v] = tri[(i + bestRot) % 3];
       uvs.push(u, v);
     }
-    // edges curl in first, the centre folds last — coherent waves, not
-    // random shattering; the small jitter keeps it organic
-    const rho = pageInfo[assigned[f]].rho;
-    stagger.push(0.05 + 0.32 * (1 - rho) + 0.06 * rand());
+    // the grabbed corner (top-right) crumples first: scraps fold into the
+    // ball in the order the peel reaches them — a wave sweeping from the
+    // pulled corner to the far one; the small jitter keeps it organic
+    // the 0.12 floor keeps the start of the drag a pure page flip — no scrap
+    // starts balling before the corner has visibly turned over. Spread and
+    // jitter stay small: neighbours must travel near-together or the sheet
+    // opens gaps and reads as cut, not crumpled
+    const dCorner =
+      Math.hypot(pcu - 1, pcv / aspect) / Math.hypot(1, 1 / aspect);
+    stagger.push(0.12 + 0.3 * dCorner + 0.02 * rand());
   });
 
   return { positions, uvs, stagger, faceCount: faces.length };
