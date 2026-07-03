@@ -84,9 +84,6 @@ export function useCrumpleGesture(opts: Options) {
       t.value = 0;
       throwU.value = 0;
       active.value = 1;
-      // the bin surfaces from the bottom edge, ready to receive — near
-      // critically damped: a firm rise, no wobble
-      binRise.value = withSpring(1, { damping: 20, stiffness: 200 });
       scheduleOnRN(chooseUnder);
     })
     .onUpdate((e) => {
@@ -107,7 +104,10 @@ export function useCrumpleGesture(opts: Options) {
       const tEnd = Math.max(t.value, Math.min(Math.max(proj / requiredDist, 0), 1));
       if (tEnd > CONFIRM_T) {
         t.value = tEnd;
-        // confirm: finish the ball at screen center, then drop it in the bin
+        // confirm: finish the ball at screen center, then drop it in the bin.
+        // Only now does the bin surface from the bottom edge — near critically
+        // damped, so it's up and steady before the throw lands
+        binRise.value = withSpring(1, { damping: 20, stiffness: 200 });
         cx.value = withTiming(width / 2, { duration: 240 });
         cy.value = withTiming(height / 2, { duration: 240 });
         t.value = withTiming(1, { duration: 240 }, (finished) => {
@@ -133,7 +133,6 @@ export function useCrumpleGesture(opts: Options) {
           );
         });
       } else {
-        binRise.value = withTiming(0, { duration: 240 });
         // overshootClamping: the sheet relaxes flat and stops — no re-bulge
         t.value = withSpring(
           0,
