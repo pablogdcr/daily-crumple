@@ -202,6 +202,22 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
 
         rp.push([sx + (rx - sx) * mf, sy + (ry - sy) * mf, sz + (rz - sz) * mf]);
       }
+      // mid-blend, a scrap's edges leave its neighbours' (they head to
+      // different facets) — inflate each scrap about its centroid so
+      // neighbours overlap a touch instead of opening slits: paper overlaps,
+      // it never cuts. Tapers to exactly 0 at both ends, so the flat page
+      // and the finished ball stay exact
+      const infl = 1.55 * mf * (1 - mf);
+      if (infl > 0.001) {
+        const gx = (rp[0][0] + rp[1][0] + rp[2][0]) / 3;
+        const gy = (rp[0][1] + rp[1][1] + rp[2][1]) / 3;
+        const gz = (rp[0][2] + rp[1][2] + rp[2][2]) / 3;
+        for (let i = 0; i < 3; i++) {
+          rp[i][0] += (rp[i][0] - gx) * infl;
+          rp[i][1] += (rp[i][1] - gy) * infl;
+          rp[i][2] += (rp[i][2] - gz) * infl;
+        }
+      }
       // face normal — two-sided while folding (a scrap may show its back)
       const ax = rp[1][0] - rp[0][0];
       const ay = rp[1][1] - rp[0][1];
