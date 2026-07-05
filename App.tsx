@@ -9,7 +9,10 @@ import {
 } from '@expo-google-fonts/pt-serif';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { LogBox, StyleSheet, View } from 'react-native';
+
+// no LogBox toasts over the newspaper while recording demos
+LogBox.ignoreAllLogs();
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FpsCounter } from './src/components/FpsCounter';
