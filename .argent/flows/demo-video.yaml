@@ -63,7 +63,7 @@ steps:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
       steps:
         - tool: gesture-custom
-          delayMs: 450
+          delayMs: 120
           args:
             interpolate: 4
             events:
@@ -74,23 +74,23 @@ steps:
               - type: Move
                 x: 0.5
                 y: 0.55
-                delayMs: 80
+                delayMs: 65
               - type: Move
                 x: 0.5
                 y: 0.42
-                delayMs: 80
+                delayMs: 65
               - type: Move
                 x: 0.5
                 y: 0.36
-                delayMs: 80
+                delayMs: 65
               - type: Move
                 x: 0.5
                 y: 0.35
-                delayMs: 120
+                delayMs: 90
               - type: Up
                 x: 0.5
                 y: 0.35
-                delayMs: 60
+                delayMs: 40
         - tool: gesture-custom
           args:
             interpolate: 4
