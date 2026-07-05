@@ -1,0 +1,673 @@
+executionPrerequisite: Daily Crumple freshly restarted (restart-app, then wait
+  ≥3s for the snapshot pre-warm) on sim 59D14D69-D2BF-4406-8F61-5BCDA88298B2,
+  showing page 1 of 7 at scroll top, Metro running on 8085. The flow starts with
+  an invisible warm-up tap for the first-gesture flake; screen recording can
+  start before executing.
+steps:
+  - echo: Warm-up tap (first synthetic gesture after restart is flaky) — invisible
+      on screen
+  - tool: gesture-tap
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      x: 0.5
+      y: 0.45
+  - echo: "Beat 1: read the article — two flings scroll to the bottom; the second
+      lands in the edge and plays the momentum overscroll crumple"
+  - tool: run-sequence
+    delayMs: 400
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      steps:
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.72
+            toX: 0.5
+            toY: 0.3
+            durationMs: 260
+          delayMs: 1100
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.72
+            toX: 0.5
+            toY: 0.28
+            durationMs: 200
+          delayMs: 1600
+  - echo: "Beat 2: deliberate bottom overscroll — slow pull up at the end of the
+      article, hold, release (crumple + rubber-band back)"
+  - tool: gesture-custom
+    delayMs: 1200
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.5
+          y: 0.68
+          delayMs: 150
+        - type: Move
+          x: 0.5
+          y: 0.62
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.55
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.48
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.42
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.37
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.33
+          delayMs: 80
+        - type: Move
+          x: 0.5
+          y: 0.31
+          delayMs: 90
+        - type: Move
+          x: 0.5
+          y: 0.3
+          delayMs: 400
+        - type: Up
+          x: 0.5
+          y: 0.3
+          delayMs: 1200
+  - echo: "Beat 3: fling back to the top — the fling lands in the top edge and plays
+      the momentum overscroll"
+  - tool: run-sequence
+    delayMs: 1300
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      steps:
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.3
+            toX: 0.5
+            toY: 0.75
+            durationMs: 240
+          delayMs: 1100
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.3
+            toX: 0.5
+            toY: 0.78
+            durationMs: 200
+          delayMs: 1600
+  - echo: "Beat 4: deliberate top overscroll — slow pull down at the top, hold,
+      release"
+  - tool: gesture-custom
+    delayMs: 1200
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.5
+          y: 0.3
+          delayMs: 150
+        - type: Move
+          x: 0.5
+          y: 0.36
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.43
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.5
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.56
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.61
+          delayMs: 70
+        - type: Move
+          x: 0.5
+          y: 0.65
+          delayMs: 80
+        - type: Move
+          x: 0.5
+          y: 0.67
+          delayMs: 90
+        - type: Move
+          x: 0.5
+          y: 0.68
+          delayMs: 400
+        - type: Up
+          x: 0.5
+          y: 0.68
+          delayMs: 1200
+  - echo: "Beat 5: next page — swipe left along a sinusoidal wave so the grip
+      visibly follows the finger both axes"
+  - tool: gesture-custom
+    delayMs: 1500
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.92
+          y: 0.42
+          delayMs: 120
+        - type: Move
+          x: 0.86
+          y: 0.43
+          delayMs: 85
+        - type: Move
+          x: 0.78
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.7
+          y: 0.6
+          delayMs: 85
+        - type: Move
+          x: 0.62
+          y: 0.62
+          delayMs: 85
+        - type: Move
+          x: 0.54
+          y: 0.52
+          delayMs: 85
+        - type: Move
+          x: 0.46
+          y: 0.38
+          delayMs: 85
+        - type: Move
+          x: 0.38
+          y: 0.26
+          delayMs: 85
+        - type: Move
+          x: 0.3
+          y: 0.24
+          delayMs: 85
+        - type: Move
+          x: 0.22
+          y: 0.32
+          delayMs: 85
+        - type: Move
+          x: 0.14
+          y: 0.45
+          delayMs: 85
+        - type: Up
+          x: 0.14
+          y: 0.45
+          delayMs: 350
+  - echo: "Beat 6: two more wavy next-page swipes (pages 3 and 4), each wave shaped
+      differently"
+  - tool: gesture-custom
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.9
+          y: 0.6
+          delayMs: 120
+        - type: Move
+          x: 0.84
+          y: 0.59
+          delayMs: 85
+        - type: Move
+          x: 0.76
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.68
+          y: 0.38
+          delayMs: 85
+        - type: Move
+          x: 0.6
+          y: 0.3
+          delayMs: 85
+        - type: Move
+          x: 0.52
+          y: 0.3
+          delayMs: 85
+        - type: Move
+          x: 0.44
+          y: 0.38
+          delayMs: 85
+        - type: Move
+          x: 0.36
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.28
+          y: 0.6
+          delayMs: 85
+        - type: Move
+          x: 0.2
+          y: 0.64
+          delayMs: 85
+        - type: Move
+          x: 0.13
+          y: 0.6
+          delayMs: 85
+        - type: Up
+          x: 0.13
+          y: 0.6
+          delayMs: 350
+  - tool: gesture-custom
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.91
+          y: 0.3
+          delayMs: 120
+        - type: Move
+          x: 0.85
+          y: 0.31
+          delayMs: 85
+        - type: Move
+          x: 0.77
+          y: 0.38
+          delayMs: 85
+        - type: Move
+          x: 0.69
+          y: 0.48
+          delayMs: 85
+        - type: Move
+          x: 0.61
+          y: 0.57
+          delayMs: 85
+        - type: Move
+          x: 0.53
+          y: 0.62
+          delayMs: 85
+        - type: Move
+          x: 0.45
+          y: 0.6
+          delayMs: 85
+        - type: Move
+          x: 0.37
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.29
+          y: 0.4
+          delayMs: 85
+        - type: Move
+          x: 0.21
+          y: 0.34
+          delayMs: 85
+        - type: Move
+          x: 0.14
+          y: 0.33
+          delayMs: 85
+        - type: Up
+          x: 0.14
+          y: 0.33
+          delayMs: 350
+  - echo: "Beat 7: back one page — wavy swipe from the left edge"
+  - tool: gesture-custom
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.08
+          y: 0.5
+          delayMs: 120
+        - type: Move
+          x: 0.15
+          y: 0.51
+          delayMs: 85
+        - type: Move
+          x: 0.24
+          y: 0.58
+          delayMs: 85
+        - type: Move
+          x: 0.33
+          y: 0.64
+          delayMs: 85
+        - type: Move
+          x: 0.42
+          y: 0.62
+          delayMs: 85
+        - type: Move
+          x: 0.51
+          y: 0.52
+          delayMs: 85
+        - type: Move
+          x: 0.6
+          y: 0.4
+          delayMs: 85
+        - type: Move
+          x: 0.69
+          y: 0.32
+          delayMs: 85
+        - type: Move
+          x: 0.78
+          y: 0.32
+          delayMs: 85
+        - type: Move
+          x: 0.86
+          y: 0.4
+          delayMs: 85
+        - type: Up
+          x: 0.86
+          y: 0.4
+          delayMs: 350
+  - echo: "Beat 8: delete — grab the TEAR HERE corner, pause mid-peel so the flip
+      reads, then commit; ball → bin → page swap"
+  - tool: gesture-custom
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.9
+          y: 0.1
+          delayMs: 200
+        - type: Move
+          x: 0.86
+          y: 0.14
+          delayMs: 100
+        - type: Move
+          x: 0.81
+          y: 0.19
+          delayMs: 100
+        - type: Move
+          x: 0.76
+          y: 0.24
+          delayMs: 110
+        - type: Move
+          x: 0.72
+          y: 0.28
+          delayMs: 350
+        - type: Move
+          x: 0.67
+          y: 0.33
+          delayMs: 100
+        - type: Move
+          x: 0.62
+          y: 0.38
+          delayMs: 100
+        - type: Move
+          x: 0.58
+          y: 0.42
+          delayMs: 100
+        - type: Move
+          x: 0.55
+          y: 0.45
+          delayMs: 150
+        - type: Up
+          x: 0.55
+          y: 0.45
+          delayMs: 300
+  - echo: "Beat 9: delete another one — quicker, continuous pull this time"
+  - tool: gesture-custom
+    delayMs: 3400
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.9
+          y: 0.1
+          delayMs: 150
+        - type: Move
+          x: 0.85
+          y: 0.15
+          delayMs: 90
+        - type: Move
+          x: 0.79
+          y: 0.21
+          delayMs: 90
+        - type: Move
+          x: 0.73
+          y: 0.27
+          delayMs: 90
+        - type: Move
+          x: 0.66
+          y: 0.34
+          delayMs: 90
+        - type: Move
+          x: 0.59
+          y: 0.41
+          delayMs: 90
+        - type: Move
+          x: 0.52
+          y: 0.48
+          delayMs: 120
+        - type: Up
+          x: 0.52
+          y: 0.48
+          delayMs: 300
+  - echo: "Beat 10: browse again — wavy swipe to next page, then back"
+  - tool: gesture-custom
+    delayMs: 3400
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.91
+          y: 0.5
+          delayMs: 120
+        - type: Move
+          x: 0.85
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.77
+          y: 0.43
+          delayMs: 85
+        - type: Move
+          x: 0.69
+          y: 0.35
+          delayMs: 85
+        - type: Move
+          x: 0.61
+          y: 0.33
+          delayMs: 85
+        - type: Move
+          x: 0.53
+          y: 0.39
+          delayMs: 85
+        - type: Move
+          x: 0.45
+          y: 0.5
+          delayMs: 85
+        - type: Move
+          x: 0.37
+          y: 0.6
+          delayMs: 85
+        - type: Move
+          x: 0.29
+          y: 0.65
+          delayMs: 85
+        - type: Move
+          x: 0.21
+          y: 0.62
+          delayMs: 85
+        - type: Move
+          x: 0.13
+          y: 0.55
+          delayMs: 85
+        - type: Up
+          x: 0.13
+          y: 0.55
+          delayMs: 350
+  - tool: gesture-custom
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      events:
+        - type: Down
+          x: 0.09
+          y: 0.35
+          delayMs: 120
+        - type: Move
+          x: 0.16
+          y: 0.36
+          delayMs: 85
+        - type: Move
+          x: 0.25
+          y: 0.43
+          delayMs: 85
+        - type: Move
+          x: 0.34
+          y: 0.52
+          delayMs: 85
+        - type: Move
+          x: 0.43
+          y: 0.58
+          delayMs: 85
+        - type: Move
+          x: 0.52
+          y: 0.57
+          delayMs: 85
+        - type: Move
+          x: 0.61
+          y: 0.49
+          delayMs: 85
+        - type: Move
+          x: 0.7
+          y: 0.4
+          delayMs: 85
+        - type: Move
+          x: 0.79
+          y: 0.36
+          delayMs: 85
+        - type: Move
+          x: 0.87
+          y: 0.38
+          delayMs: 85
+        - type: Up
+          x: 0.87
+          y: 0.38
+          delayMs: 350
+  - echo: "Beat 11 (closer): scroll to the bottom and overscroll, then fling to the
+      top and overscroll — end on the settled front page"
+  - tool: run-sequence
+    delayMs: 1800
+    args:
+      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      steps:
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.72
+            toX: 0.5
+            toY: 0.3
+            durationMs: 260
+          delayMs: 1100
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.72
+            toX: 0.5
+            toY: 0.28
+            durationMs: 200
+          delayMs: 1600
+        - tool: gesture-custom
+          args:
+            events:
+              - type: Down
+                x: 0.5
+                y: 0.68
+                delayMs: 150
+              - type: Move
+                x: 0.5
+                y: 0.6
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.51
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.43
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.37
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.33
+                delayMs: 80
+              - type: Move
+                x: 0.5
+                y: 0.31
+                delayMs: 90
+              - type: Move
+                x: 0.5
+                y: 0.3
+                delayMs: 400
+              - type: Up
+                x: 0.5
+                y: 0.3
+                delayMs: 400
+          delayMs: 200
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.3
+            toX: 0.5
+            toY: 0.75
+            durationMs: 240
+          delayMs: 1100
+        - tool: gesture-swipe
+          args:
+            fromX: 0.5
+            fromY: 0.3
+            toX: 0.5
+            toY: 0.78
+            durationMs: 200
+          delayMs: 1600
+        - tool: gesture-custom
+          args:
+            events:
+              - type: Down
+                x: 0.5
+                y: 0.3
+                delayMs: 150
+              - type: Move
+                x: 0.5
+                y: 0.38
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.47
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.55
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.61
+                delayMs: 70
+              - type: Move
+                x: 0.5
+                y: 0.65
+                delayMs: 80
+              - type: Move
+                x: 0.5
+                y: 0.67
+                delayMs: 90
+              - type: Move
+                x: 0.5
+                y: 0.68
+                delayMs: 400
+              - type: Up
+                x: 0.5
+                y: 0.68
+                delayMs: 400
+          delayMs: 200
