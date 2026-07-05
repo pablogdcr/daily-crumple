@@ -11,16 +11,10 @@ import { colors, fonts } from '../theme';
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 /**
- * Dev-only frame-rate readout. Measures the gap between display frames on the UI
- * thread (Reanimated's frame callback) and writes the smoothed fps straight into
- * a TextInput's `text` prop via animatedProps — so the counter never triggers a
- * React re-render and doesn't perturb the very thing it's measuring.
- *
- * Read it on a *physical* 120Hz device: the simulator is locked to 60. ~120 means
- * ProMotion is engaged (CADisableMinimumFrameDurationOnPhone is set); a steady 60
- * on a Pro device means something is capping it; dips below mean dropped frames.
- *
- * Mounted behind `__DEV__` in App.tsx, so it never ships.
+ * Dev-only frame-rate readout. Writes the smoothed fps straight into a
+ * TextInput via animatedProps, so it never triggers a React re-render and
+ * doesn't perturb the very thing it's measuring. The simulator is locked to
+ * 60 — read it on a physical 120Hz device for real numbers.
  */
 export function FpsCounter() {
   const insets = useSafeAreaInsets();
@@ -61,8 +55,7 @@ export function FpsCounter() {
   );
 }
 
-// styled as a printer's colophon mark at the foot of the page — set in the
-// paper's own type so the readout looks typeset, not overlaid
+// styled as a printer's colophon mark — typeset, not overlaid
 const styles = StyleSheet.create({
   text: {
     position: 'absolute',
@@ -70,8 +63,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     paddingVertical: 3,
-    // paper-on-paper: masks scrolling body text behind the mark without
-    // reading as an overlay chip
     backgroundColor: colors.paper,
     fontFamily: fonts.body,
     fontSize: 8.5,

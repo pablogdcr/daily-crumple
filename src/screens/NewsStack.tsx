@@ -1,18 +1,16 @@
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
-import Animated, {
+import { GestureDetector } from 'react-native-gesture-handler';
+import {
   useAnimatedReaction,
-  useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArticlePage } from '../components/ArticlePage';
+import { PageHolder } from '../components/PageHolder';
 import { TouchIndicator, useTouchIndicator } from '../components/TouchIndicator';
 import { ARTICLES, type Article } from '../data/articles';
 import { CrinkleOverlay } from '../effects/CrinkleOverlay';
@@ -23,8 +21,8 @@ import {
   overscrollShowing,
   type OverscrollWiring,
 } from '../effects/OverscrollOverlay';
-import { usePageGestures, type CrinkleGestureState } from '../engine/usePageGestures';
-import { useCrumpleGesture, type CrumpleState } from '../engine/useCrumpleGesture';
+import { usePageGestures } from '../engine/usePageGestures';
+import { useCrumpleGesture } from '../engine/useCrumpleGesture';
 import { useSnapshot } from '../engine/useSnapshot';
 import { colors } from '../theme';
 
@@ -61,17 +59,16 @@ export function NewsStack() {
   const currentArticle = articles[index];
 
   // depend on snapshot.take (stable), NOT the snapshot object — its identity
-  // changes every render, and takeSnapshot feeds effects: an unstable identity
-  // here loops take → setImage → render → take until Hermes OOMs
+  // changes every render, and an unstable identity here loops
+  // take → setImage → render → take until Hermes OOMs
   const takeSnapshotFn = snapshot.take;
   const takeSnapshot = useCallback(() => {
     setSnapArticleId(currentArticle.id);
     return takeSnapshotFn();
   }, [currentArticle.id, takeSnapshotFn]);
 
-  // Pre-warm: the first makeImageFromView after launch is slow (>1s cold
-  // Metal pipeline) — capture ahead of time so the shaders have an image the
-  // moment a gesture starts. Refreshed after every page swap.
+  // pre-warm: the first makeImageFromView after launch is slow (>1s cold Metal
+  // pipeline) — capture ahead so the shaders have an image at gesture start
   useEffect(() => {
     const id = setTimeout(takeSnapshot, 400);
     return () => clearTimeout(id);
@@ -85,6 +82,7 @@ export function NewsStack() {
     [index, articles.length],
   );
 
+  // chooseUnder runs before commit, so remember the target for the commit callback
   const pendingCommit = useRef<number | null>(null);
   const commit = useCallback(() => {
     setIndex((i) => {
@@ -94,7 +92,6 @@ export function NewsStack() {
     });
     setUnderIndex(null);
   }, []);
-  // chooseUnder runs before commit, so remember the target for the commit callback
   useEffect(() => {
     pendingCommit.current = underIndex;
   }, [underIndex]);
@@ -121,8 +118,7 @@ export function NewsStack() {
   const overscrollRamp = useSharedValue(1);
   const overscrollSeed = useSharedValue(0);
   const overscrollRelease = useSharedValue(0);
-  // stable identity: shared values never change, and a fresh object every
-  // render would defeat PageHolder's memo
+  // stable identity — a fresh object every render would defeat PageHolder's memo
   const overscroll: OverscrollWiring = useMemo(
     () => ({
       y: overscrollY,
@@ -145,11 +141,9 @@ export function NewsStack() {
   );
   const overscrollActive = useDerivedValue<number>(() => overscrollShowing(overscroll));
 
-  // Momentum overscroll (a fling coasting past the edge, no finger down):
-  // the touch-down snapshot is stale, so grab a fresh one the moment the
-  // bounce begins. The content is pinned at the edge by ArticlePage's
-  // compensation transform, so the capture is edge-exact; once it lands the
-  // crumple ramps in over ~140ms.
+  // Momentum overscroll (coasting past the edge with no finger down): the
+  // touch-down snapshot is stale, so grab a fresh one the moment the bounce
+  // begins — the content is pinned at the edge, so the capture is edge-exact.
   const momentumPending = useRef(false);
   const momentumGen = useRef(0);
   const requestMomentumSnapshot = useCallback(() => {
@@ -174,9 +168,8 @@ export function NewsStack() {
   const snapImage = snapshot.image;
   const snapGen = snapshot.imageGen;
   useEffect(() => {
-    // gate on the capture generation: a touch-down capture from BEFORE the
-    // edge crossing may land first (shot at a scrolled-away offset) — showing
-    // it would flash the wrong part of the page for a frame
+    // gate on the capture generation: an older capture (shot at a scrolled-away
+    // offset) landing late would flash the wrong part of the page for a frame
     if (momentumPending.current && snapImage && snapGen >= momentumGen.current) {
       momentumPending.current = false;
       overscrollRamp.value = 0;
@@ -253,112 +246,64 @@ export function NewsStack() {
 
   return (
     <GestureDetector gesture={touch.tracker}>
-    <View style={styles.root}>
-      <GestureDetector gesture={crinklePan}>
-        <View style={styles.deck}>
-          {pages.map(({ article, isCurrent, pageNo }) => (
-            <PageHolder
-              key={article.id}
-              article={article}
-              page={pageNo}
-              total={articles.length}
-              crinkle={state}
-              crumple={crumple}
-              overscrollActive={overscrollActive}
-              overscroll={isCurrent ? overscroll : undefined}
-              shouldHide={article.id === snapArticleId}
-              pageRef={isCurrent ? snapshot.pageRef : undefined}
-              scrollSimultaneousWith={touch.trackerRef}
-            />
-          ))}
-        </View>
-      </GestureDetector>
-      <CrinkleOverlay image={snapshot.image} state={state} width={width} height={height} />
-      <OverscrollOverlay
-        image={snapshot.image}
-        wiring={overscroll}
-        width={width}
-        height={height}
-      />
-      <CrumpleOverlay
-        image={snapshot.image}
-        state={crumple}
-        width={width}
-        height={height}
-      />
-      {/* invisible delete handle — grabbing this corner crumples the page.
-          collapsable={false}: RN view-flattening would remove this empty
-          View, leaving the gesture with no native view to hit-test */}
-      <GestureDetector gesture={binPan}>
-        <View collapsable={false} style={[styles.handle, { top: insets.top + 4 }]} />
-      </GestureDetector>
-      {/* demo fingertip — a translucent circle following any touch */}
-      <TouchIndicator x={touch.x} y={touch.y} pressed={touch.pressed} />
-    </View>
+      <View style={styles.root}>
+        <GestureDetector gesture={crinklePan}>
+          <View style={styles.deck}>
+            {pages.map(({ article, isCurrent, pageNo }) => (
+              <PageHolder
+                key={article.id}
+                article={article}
+                page={pageNo}
+                total={articles.length}
+                crinkle={state}
+                crumple={crumple}
+                overscrollActive={overscrollActive}
+                overscroll={isCurrent ? overscroll : undefined}
+                shouldHide={article.id === snapArticleId}
+                pageRef={isCurrent ? snapshot.pageRef : undefined}
+                scrollSimultaneousWith={touch.trackerRef}
+              />
+            ))}
+          </View>
+        </GestureDetector>
+        <CrinkleOverlay
+          image={snapshot.image}
+          state={state}
+          width={width}
+          height={height}
+        />
+        <OverscrollOverlay
+          image={snapshot.image}
+          wiring={overscroll}
+          width={width}
+          height={height}
+        />
+        <CrumpleOverlay
+          image={snapshot.image}
+          state={crumple}
+          width={width}
+          height={height}
+        />
+        {/* invisible delete handle. collapsable={false}: view-flattening would
+            remove this empty View, leaving the gesture nothing to hit-test */}
+        <GestureDetector gesture={binPan}>
+          <View collapsable={false} style={[styles.handle, { top: insets.top + 4 }]} />
+        </GestureDetector>
+        {/* demo fingertip — a translucent circle following any touch */}
+        <TouchIndicator x={touch.x} y={touch.y} pressed={touch.pressed} />
+      </View>
     </GestureDetector>
   );
 }
 
-interface PageHolderProps {
-  article: Article;
-  page: number;
-  total: number;
-  crinkle: CrinkleGestureState;
-  crumple: CrumpleState;
-  /** 1 while the overscroll crumple overlay is drawing. */
-  overscrollActive: SharedValue<number>;
-  /** Scroll wiring — only the current page writes it. */
-  overscroll?: OverscrollWiring;
-  /** True only for the article frozen in the current snapshot. */
-  shouldHide: boolean;
-  pageRef?: React.RefObject<View | null>;
-  /** Touch-indicator tracker ref — the scroll gesture must not cancel it. */
-  scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
-}
-
-// memoized: NewsStack re-renders on every snapshot landing (mid-gesture);
-// without memo both full article pages would re-render their text each time
-const PageHolder = memo(function PageHolder({
-  article,
-  page,
-  total,
-  crinkle,
-  crumple,
-  overscrollActive,
-  overscroll,
-  shouldHide,
-  pageRef,
-  scrollSimultaneousWith,
-}: PageHolderProps) {
-  const style = useAnimatedStyle(
-    () => ({
-      opacity:
-        shouldHide &&
-        (crinkle.active.value || crumple.active.value || overscrollActive.value)
-          ? 0
-          : 1,
-    }),
-    [shouldHide],
-  );
-
-  return (
-    <Animated.View style={[styles.pageHolder, style]}>
-      <ArticlePage
-        ref={pageRef}
-        article={article}
-        page={page}
-        total={total}
-        overscroll={overscroll}
-        scrollSimultaneousWith={scrollSimultaneousWith}
-      />
-    </Animated.View>
-  );
-});
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.paperDark },
-  deck: { flex: 1 },
-  pageHolder: StyleSheet.absoluteFill,
+  root: {
+    flex: 1,
+    backgroundColor: colors.paperDark,
+  },
+  deck: {
+    flex: 1,
+  },
   handle: {
     position: 'absolute',
     right: 10,
