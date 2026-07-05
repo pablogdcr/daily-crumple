@@ -120,6 +120,7 @@ export function NewsStack() {
   const overscrollReady = useSharedValue(0);
   const overscrollRamp = useSharedValue(1);
   const overscrollSeed = useSharedValue(0);
+  const overscrollRelease = useSharedValue(0);
   const overscroll: OverscrollWiring = {
     y: overscrollY,
     max: overscrollMax,
@@ -127,6 +128,7 @@ export function NewsStack() {
     ready: overscrollReady,
     ramp: overscrollRamp,
     seed: overscrollSeed,
+    release: overscrollRelease,
   };
   const overscrollActive = useDerivedValue<number>(() => overscrollShowing(overscroll));
 
@@ -213,6 +215,7 @@ export function NewsStack() {
     crumple.binRise.value = 0;
     crumpleSettling.value = 0;
     overscrollArmed.value = 0;
+    overscrollRelease.value = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, articles]);
 

@@ -2,8 +2,12 @@ import { forwardRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
+  scrollTo,
+  useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Article } from '../data/articles';
@@ -62,6 +66,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
   ref,
 ) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
 
   const [lead, ...rest] = article.paragraphs;
   const split = Math.ceil(rest.length / 2);
@@ -82,6 +87,12 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
     },
     onBeginDrag: (e) => {
       if (!overscroll) return;
+      // a new touch takes over from the release spring: the offset is already
+      // settled at the edge, so the live page can show mid-relax without a jump
+      if (overscroll.release.value !== 0) {
+        cancelAnimation(overscroll.release);
+        overscroll.release.value = 0;
+      }
       const max = Math.max(0, e.contentSize.height - e.layoutMeasurement.height);
       const y = e.contentOffset.y;
       overscroll.y.value = y;
@@ -96,6 +107,26 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         overscroll.seed.value = Math.random() * 100;
         overscroll.ramp.value = 1;
       }
+    },
+    onEndDrag: (e) => {
+      if (!overscroll) return;
+      const max = Math.max(0, e.contentSize.height - e.layoutMeasurement.height);
+      const y = e.contentOffset.y;
+      const over = y < -0.5 ? -y : y > max + 0.5 ? max - y : 0;
+      if (over === 0) return;
+      const armedForEdge =
+        over > 0 ? overscroll.armed.value & 1 : overscroll.armed.value & 2;
+      if (!armedForEdge && !overscroll.ready.value) return;
+      // Own the relax: a native rubber-band return swallows any touch that
+      // lands during it, so settle the offset at the edge instantly and spring
+      // the crumple flat ourselves — the page is immediately draggable again.
+      overscroll.release.value = over * overscroll.ramp.value;
+      scrollTo(scrollRef, 0, over > 0 ? 0 : max, false);
+      overscroll.release.value = withSpring(0, {
+        damping: 26,
+        stiffness: 220,
+        overshootClamping: true,
+      });
     },
   });
 
@@ -115,6 +146,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
     <View ref={ref} collapsable={false} style={styles.page}>
       <Image source={require('../../assets/paper-grain.png')} style={styles.grain} resizeMode="repeat" />
       <AnimatedScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={{
           paddingTop: insets.top + 6,
