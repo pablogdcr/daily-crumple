@@ -69,7 +69,7 @@ interface Props {
  * Overscroll crumple layer. Drawn only while the native rubber band is past
  * an edge on a drag that STARTED at that edge (so the touch-down snapshot
  * matches the frozen content exactly). Because the effect is driven by the
- * live scroll offset, it follows the native bounce physics out and back —
+ * live scroll offset, it follows the native bounce physics out and back -
  * when the offset re-enters bounds the layer vanishes and the live page
  * (sitting at the edge, identical to the snapshot) shows again seamlessly.
  */

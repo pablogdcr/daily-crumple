@@ -14,7 +14,7 @@ const SIZE = 54;
 /**
  * Fingertip for demo recordings: a translucent ink circle following any touch.
  * The tracker is a Manual gesture that never activates, so it observes every
- * touch without competing — but page gestures and the ScrollView must list it
+ * touch without competing - but page gestures and the ScrollView must list it
  * as simultaneous, or RNGH cancels it the moment they activate.
  */
 export function useTouchIndicator() {

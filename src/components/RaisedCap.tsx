@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
-/** Ascent room the raised cap needs — becomes the first line's height. */
+/** Ascent room the raised cap needs - becomes the first line's height. */
 const CAP_BOX_HEIGHT = 34;
 
 /**
  * The lead paragraph's raised cap, mounted as an inline view attachment.
  * A nested Text with a taller lineHeight would inflate EVERY line of the
- * paragraph on iOS, and matching the body lineHeight clips the glyph — an
+ * paragraph on iOS, and matching the body lineHeight clips the glyph - an
  * inline view only grows the line that contains it. The box width tracks the
  * measured glyph, and the glyph hangs below the box to sit on the baseline.
  */

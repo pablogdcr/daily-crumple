@@ -21,7 +21,7 @@ interface Props {
 /**
  * Always-mounted Skia layer that draws the snapshotted page through the
  * crinkle shader during a swipe. Invisible when idle (opacity gated on the
- * gesture's `active` shared value) — the live page shows through beneath.
+ * gesture's `active` shared value) - the live page shows through beneath.
  */
 export function CrinkleOverlay({ image, state, width, height }: Props) {
   const opacity = useDerivedValue(() => state.active.value);

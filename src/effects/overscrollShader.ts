@@ -6,7 +6,7 @@ import { Skia } from '@shopify/react-native-skia';
  * The native ScrollView rubber band drives uOver (px past the edge, signed:
  * positive = pulled down at the top, negative = pulled up at the bottom).
  * A virtual grip row is dragged with the rubber band while both screen edges
- * stay pinned — the mapping is a bijection of the page onto itself, so no
+ * stay pinned - the mapping is a bijection of the page onto itself, so no
  * sample ever leaves the page and nothing shows "behind" the paper: the sheet
  * just stretches on one side, compresses on the other, and crumples with
  * horizontal ridges around the grip. Shading matches the crinkle shader
@@ -21,7 +21,7 @@ uniform float  uSeed;
 float height(float2 p, float gripY, float amp, float reach) {
   float s = p.y - gripY;                    // distance along the pull axis
   float q = p.x - uRes.x * 0.5;
-  // ridge lines are never straight — wobble along x, seeded per drag
+  // ridge lines are never straight - wobble along x, seeded per drag
   float phase = 0.9 * sin(q * 0.014 + uSeed)
               + 0.5 * sin(q * 0.030 + s * 0.008 + uSeed * 1.7);
   return amp * cos(s * 0.05 + phase) * exp(-abs(s) / reach);
@@ -60,7 +60,7 @@ half4 main(float2 p) {
   float shade = 0.78 + 0.30 * max(dot(n, L), 0.0);
   shade += 0.08 * pow(max(reflect(-L, n).z, 0.0), 12.0);
   shade -= 0.14 * av * smoothstep(0.0, 1.0, -hc / 14.0);
-  // normals exaggerate tiny ripples — fade the shading out entirely for
+  // normals exaggerate tiny ripples - fade the shading out entirely for
   // shallow bounces so a small overscroll reads as a small crumple
   shade = 1.0 + (shade - 1.0) * smoothstep(0.0, 0.45, av);
 

@@ -4,10 +4,10 @@ import { Skia } from '@shopify/react-native-skia';
  * Crinkled-paper swipe shader (backward mapping: each output pixel decides
  * where in the snapshot it reads from).
  *
- * The look: as the finger drags horizontally, the page follows — but not
+ * The look: as the finger drags horizontally, the page follows - but not
  * rigidly. The row under the finger travels furthest (shear anchored on
  * uTouch.y, so a grip at the top peels the page diagonally from the top, a
- * bottom grip from the bottom — and the grip rides up and down WITH the
+ * bottom grip from the bottom - and the grip rides up and down WITH the
  * finger, dragging the page vertically too). Compression folds radiate from
  * the finger, fanning with the grip height, and a per-gesture seed shifts
  * every wobble phase so no two swipes fold the same way. Shading comes from the fold height field
@@ -53,7 +53,7 @@ half4 main(float2 p) {
   // ── cloth pull: the grabbed row tracks the finger 1:1, the rest lags ──
   // uProgress == |translationX| / width, so dragX is exactly the finger travel.
   // The pull is anchored to the finger's CURRENT row, not where the gesture
-  // started — moving the finger vertically mid-swipe moves the grip with it.
+  // started - moving the finger vertically mid-swipe moves the grip with it.
   float dragX = uProgress * uRes.x;
   float rowFall = exp(-abs(p.y - uTouch.y) / (uRes.y * 0.35));
   // once the release animation runs, the lagging cloth catches up and the
@@ -63,7 +63,7 @@ half4 main(float2 p) {
   float pull = dragX * lag * (1.0 + 0.4 * catchup);
 
   // ── top/bottom pinning: the sheet stays attached to the screen's top and
-  // bottom rails — vertical fold/gather offsets fade out toward the edges so
+  // bottom rails - vertical fold/gather offsets fade out toward the edges so
   // the page's horizontal borders never peel into view ──
   float pin = smoothstep(0.0, uRes.y * 0.16, p.y)
             * smoothstep(0.0, uRes.y * 0.16, uRes.y - p.y);
@@ -71,7 +71,7 @@ half4 main(float2 p) {
   // ── vertical grip: a bijective stretch of the sheet between the rails.
   // The row under the finger shows the row that was grabbed; the material
   // above compresses / below stretches (and vice versa). The mapping covers
-  // exactly [0, h] → [0, h], so no sample ever leaves the page — nothing is
+  // exactly [0, h] → [0, h], so no sample ever leaves the page - nothing is
   // cut, the edges stay attached. Gated on progress so a cancel springs back
   // to the identity mapping (oy == ty ⇒ both segments have slope 1). ──
   float gate = smoothstep(0.0, 0.12, uProgress);

@@ -23,18 +23,18 @@ interface Props {
   /** 1-based position of this page in the paper, and the page count. */
   page: number;
   total: number;
-  /** Wired only on the current page — feeds the overscroll crumple. */
+  /** Wired only on the current page - feeds the overscroll crumple. */
   overscroll?: OverscrollWiring;
-  /** Touch-indicator tracker ref — scrolling must not cancel it. */
+  /** Touch-indicator tracker ref - scrolling must not cancel it. */
   scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
-  /** Snapshot target — set only on the current page. */
+  /** Snapshot target - set only on the current page. */
   ref?: React.Ref<View>;
 }
 
 /**
  * One full-screen newspaper page. The outer View is the snapshot target for the
  * crinkle/crumple shaders (collapsable={false} so iOS keeps a real backing view),
- * so everything that should distort — paper color, grain, text — lives inside it.
+ * so everything that should distort - paper color, grain, text - lives inside it.
  */
 export function ArticlePage({
   article,
@@ -80,7 +80,7 @@ export function ArticlePage({
       if (y <= 2) armed |= 1;
       if (y >= max - 2) armed |= 2;
       overscroll.armed.value = armed;
-      // don't reseed or reset the ramp when catching an in-flight bounce —
+      // don't reseed or reset the ramp when catching an in-flight bounce -
       // the folds would jump mid-crumple
       if (y >= -0.5 && y <= max + 0.5) {
         overscroll.seed.value = Math.random() * 100;
@@ -98,7 +98,7 @@ export function ArticlePage({
       if (!armedForEdge && !overscroll.ready.value) return;
       // Own the relax: a native rubber-band return swallows any touch that
       // lands during it, so settle the offset at the edge instantly and spring
-      // the crumple flat ourselves — the page is immediately draggable again.
+      // the crumple flat ourselves - the page is immediately draggable again.
       overscroll.release.value = over * overscroll.ramp.value;
       scrollTo(scrollRef, 0, over > 0 ? 0 : max, false);
       overscroll.release.value = withSpring(0, {
@@ -110,7 +110,7 @@ export function ArticlePage({
   });
 
   // while overscrolled, cancel the native rubber-band translation so the
-  // content stays pinned at the edge — the crumple shader owns all visible motion
+  // content stays pinned at the edge - the crumple shader owns all visible motion
   const pinStyle = useAnimatedStyle(() => {
     if (!overscroll) return { transform: [{ translateY: 0 }] };
     const y = overscroll.y.value;
@@ -147,7 +147,7 @@ export function ArticlePage({
             <Text style={[styles.dateText, styles.dateCenter]}>
               {`${EDITION_DATE.toUpperCase()} — PAGE ${page} OF ${total}`}
             </Text>
-            {/* right slot stays empty — the tear-here coupon owns that corner */}
+            {/* right slot stays empty - the tear-here coupon owns that corner */}
             <Text style={[styles.dateText, styles.dateRight]} />
           </View>
           <Text style={styles.masthead} numberOfLines={1} adjustsFontSizeToFit>
@@ -217,7 +217,7 @@ export function ArticlePage({
         </Animated.View>
       </AnimatedScrollView>
 
-      {/* corner perforation — the delete affordance, printed like a coupon
+      {/* corner perforation - the delete affordance, printed like a coupon
           cutout under the invisible drag handle */}
       <View pointerEvents="none" style={[styles.tearCorner, { top: insets.top + 16 }]}>
         <View style={styles.tearRow}>
