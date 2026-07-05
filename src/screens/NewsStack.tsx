@@ -66,7 +66,7 @@ export function NewsStack() {
   const takeSnapshotFn = snapshot.take;
   const takeSnapshot = useCallback(() => {
     setSnapArticleId(currentArticle.id);
-    takeSnapshotFn();
+    return takeSnapshotFn();
   }, [currentArticle.id, takeSnapshotFn]);
 
   // Pre-warm: the first makeImageFromView after launch is slow (>1s cold
@@ -138,9 +138,10 @@ export function NewsStack() {
   // compensation transform, so the capture is edge-exact; once it lands the
   // crumple ramps in over ~140ms.
   const momentumPending = useRef(false);
+  const momentumGen = useRef(0);
   const requestMomentumSnapshot = useCallback(() => {
     momentumPending.current = true;
-    takeSnapshot();
+    momentumGen.current = takeSnapshot();
   }, [takeSnapshot]);
   useAnimatedReaction(
     () => overscrollAmount(overscroll),
@@ -158,15 +159,19 @@ export function NewsStack() {
     },
   );
   const snapImage = snapshot.image;
+  const snapGen = snapshot.imageGen;
   useEffect(() => {
-    if (momentumPending.current && snapImage) {
+    // gate on the capture generation: a touch-down capture from BEFORE the
+    // edge crossing may land first (shot at a scrolled-away offset) — showing
+    // it would flash the wrong part of the page for a frame
+    if (momentumPending.current && snapImage && snapGen >= momentumGen.current) {
       momentumPending.current = false;
       overscrollRamp.value = 0;
       overscrollRamp.value = withTiming(1, { duration: 140 });
       overscrollReady.value = 1;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapImage]);
+  }, [snapImage, snapGen]);
 
   // ── crumple delete: dragged from the invisible top-right corner handle ──
   const handleX = width - 10 - HANDLE_SIZE / 2;

@@ -6,8 +6,15 @@ export interface SnapshotController {
   pageRef: React.RefObject<View | null>;
   /** Latest snapshot of the current page, or null before the first capture. */
   image: SkImage | null;
-  /** Capture the page into `image`. Guarded: one in-flight capture at a time. */
-  take: () => void;
+  /** Generation of the capture that produced `image` (0 = none yet). */
+  imageGen: number;
+  /**
+   * Capture the page into `image`; returns the request's generation so a
+   * caller can tell whether a landed image is fresh enough. One capture runs
+   * at a time; a request arriving mid-capture is queued (latest wins) and
+   * re-runs the moment the current one settles — never silently dropped.
+   */
+  take: () => number;
   clear: () => void;
 }
 
@@ -19,25 +26,42 @@ export interface SnapshotController {
  */
 export function useSnapshot(): SnapshotController {
   const pageRef = useRef<View>(null);
-  const [image, setImage] = useState<SkImage | null>(null);
+  const [shot, setShot] = useState<{ image: SkImage | null; gen: number }>({
+    image: null,
+    gen: 0,
+  });
   const inFlight = useRef(false);
+  const reqGen = useRef(0);
+  const queuedGen = useRef(0);
 
-  const take = useCallback(() => {
-    if (inFlight.current || !pageRef.current) return;
+  const run = useCallback((gen: number) => {
     inFlight.current = true;
     makeImageFromView(pageRef as React.RefObject<View>)
       .then((img) => {
-        if (img) setImage(img);
+        if (img) setShot({ image: img, gen });
       })
       .catch(() => {
         // transient capture failure — next touch-down retries
       })
       .finally(() => {
         inFlight.current = false;
+        if (queuedGen.current > gen) run(queuedGen.current);
       });
   }, []);
 
-  const clear = useCallback(() => setImage(null), []);
+  const take = useCallback(() => {
+    reqGen.current += 1;
+    const gen = reqGen.current;
+    if (!pageRef.current) return gen;
+    if (inFlight.current) {
+      queuedGen.current = gen;
+      return gen;
+    }
+    run(gen);
+    return gen;
+  }, [run]);
 
-  return { pageRef, image, take, clear };
+  const clear = useCallback(() => setShot({ image: null, gen: 0 }), []);
+
+  return { pageRef, image: shot.image, imageGen: shot.gen, take, clear };
 }
