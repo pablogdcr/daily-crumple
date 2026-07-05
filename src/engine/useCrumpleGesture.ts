@@ -1,4 +1,4 @@
-import { Gesture } from 'react-native-gesture-handler';
+import { Gesture, type GestureType } from 'react-native-gesture-handler';
 import { useWindowDimensions } from 'react-native';
 import {
   Easing,
@@ -42,6 +42,8 @@ interface Options {
   /** The invisible top-right corner handle — sets the pull direction. */
   handleX: number;
   handleY: number;
+  /** Touch-indicator tracker — must survive this gesture activating. */
+  tracker: GestureType;
 }
 
 const CONFIRM_T = 0.6;
@@ -59,8 +61,17 @@ export function useCrumpleGesture(opts: Options) {
   const binScale = useSharedValue(1);
   const settling = useSharedValue(0);
 
-  const { takeSnapshot, chooseUnder, land, arrive, cancel, canDelete, handleX, handleY } =
-    opts;
+  const {
+    takeSnapshot,
+    chooseUnder,
+    land,
+    arrive,
+    cancel,
+    canDelete,
+    handleX,
+    handleY,
+    tracker,
+  } = opts;
 
   // pull direction: from the corner handle toward the screen center
   const dirLen = Math.hypot(width / 2 - handleX, height / 2 - handleY);
@@ -69,6 +80,7 @@ export function useCrumpleGesture(opts: Options) {
   const requiredDist = dirLen * 0.82;
 
   const binPan = Gesture.Pan()
+    .simultaneousWithExternalGesture(tracker)
     .hitSlop(12)
     .onBegin(() => {
       'worklet';
