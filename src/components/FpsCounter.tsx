@@ -14,7 +14,7 @@ const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
  * Dev-only frame-rate readout. Writes the smoothed fps straight into a
  * TextInput via animatedProps, so it never triggers a React re-render and
  * doesn't perturb the very thing it's measuring. The simulator is locked to
- * 60 — read it on a physical 120Hz device for real numbers.
+ * 60 - read it on a physical 120Hz device for real numbers.
  */
 export function FpsCounter() {
   const insets = useSafeAreaInsets();
@@ -55,7 +55,7 @@ export function FpsCounter() {
   );
 }
 
-// styled as a printer's colophon mark — typeset, not overlaid
+// styled as a printer's colophon mark - typeset, not overlaid
 const styles = StyleSheet.create({
   text: {
     position: 'absolute',

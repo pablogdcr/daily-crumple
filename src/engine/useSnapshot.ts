@@ -12,7 +12,7 @@ export interface SnapshotController {
    * Capture the page into `image`; returns the request's generation so a
    * caller can tell whether a landed image is fresh enough. One capture runs
    * at a time; a request arriving mid-capture is queued (latest wins) and
-   * re-runs the moment the current one settles — never silently dropped.
+   * re-runs the moment the current one settles - never silently dropped.
    */
   take: () => number;
   clear: () => void;
@@ -22,7 +22,7 @@ export interface SnapshotController {
  * Snapshot plumbing for the shader overlays. The page is captured at touch-down
  * (gesture onBegin) so by the time a pan activates (±14px of travel) the image
  * is ready. The image only changes at gesture boundaries, so React state is the
- * right home for it — per-frame animation happens in shader uniforms, not here.
+ * right home for it - per-frame animation happens in shader uniforms, not here.
  */
 export function useSnapshot(): SnapshotController {
   const pageRef = useRef<View>(null);
@@ -41,7 +41,7 @@ export function useSnapshot(): SnapshotController {
         if (img) setShot({ image: img, gen });
       })
       .catch(() => {
-        // transient capture failure — next touch-down retries
+        // transient capture failure - next touch-down retries
       })
       .finally(() => {
         inFlight.current = false;

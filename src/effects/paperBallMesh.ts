@@ -1,7 +1,7 @@
 /**
  * Geometry for the 3D crumpled paper ball: an icosphere whose vertices are
  * radially displaced by seeded noise, with a few deep dents. Each face keeps
- * its own copy of the vertices (flat shading — hard creases between facets,
+ * its own copy of the vertices (flat shading - hard creases between facets,
  * like real crumpled paper).
  *
  * The page is partitioned into exactly as many triangular scraps as the ball
@@ -9,7 +9,7 @@
  * scrap: the scrap's page coordinates are BOTH its texture mapping and its
  * fold start position, so at fold=0 the facets reassemble the complete page,
  * and during the fold each scrap of paper visibly travels from its spot on
- * the page to its place on the ball. Nothing is swapped or faded — the page
+ * the page to its place on the ball. Nothing is swapped or faded - the page
  * itself folds into the ball. Built once per delete gesture on the JS
  * thread; per-frame folding/rotation/projection happens in a worklet.
  */
@@ -17,9 +17,9 @@
 export interface PaperBallMesh {
   /** Per-face vertex positions, unit-ish radius: [f0v0x, f0v0y, f0v0z, f0v1x, ...] */
   positions: number[];
-  /** Per-face page-scrap coords in 0..1 page space — texture AND fold origin. */
+  /** Per-face page-scrap coords in 0..1 page space - texture AND fold origin. */
   uvs: number[];
-  /** Per-face fold delay (0..0.35) — scraps crumple in staggered, not in lockstep. */
+  /** Per-face fold delay (0..0.35) - scraps crumple in staggered, not in lockstep. */
   stagger: number[];
   faceCount: number;
 }
@@ -35,7 +35,7 @@ function mulberry32(seed: number) {
   };
 }
 
-/** @param aspect page width / height — used to measure page angles in screen space */
+/** @param aspect page width / height - used to measure page angles in screen space */
 export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh {
   const rand = mulberry32(Math.floor(seed * 1e6) + 1);
 
@@ -56,7 +56,7 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
     [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
   ];
 
-  // ── one subdivision: 20 → 80 faces (≈40 visible facets — chunky like real) ──
+  // ── one subdivision: 20 → 80 faces (≈40 visible facets - chunky like real) ──
   const verts = raw.slice();
   const midCache = new Map<string, number>();
   const midpoint = (a: number, b: number) => {
@@ -83,7 +83,7 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
   faces = next;
 
   // ── crumple: radial displacement per unique vertex (facets stay welded).
-  // Kept shallow — a paper ball is ROUND with many small creases; deep
+  // Kept shallow - a paper ball is ROUND with many small creases; deep
   // displacement reads as a rock. A couple of soft dents break the sphere.
   const radii = verts.map(() => 1 + (rand() - 0.5) * 0.26);
   for (let d = 0; d < 3; d++) {
@@ -111,7 +111,7 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
   // ── coherent wrap assignment: the page rolls onto the sphere ──
   // Page center → front pole, page rim → wraps to the back. Neighbouring
   // scraps land on neighbouring facets, so mid-fold the sheet stays
-  // contiguous (thin creases, not holes) — like wrapping paper round a ball.
+  // contiguous (thin creases, not holes) - like wrapping paper round a ball.
   // Angles are measured in screen space (v scaled by 1/aspect).
   const rhoMax = Math.hypot(0.5, 0.5 / aspect);
   const pageInfo = pageTris.map((tri, idx) => {
@@ -166,7 +166,7 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
       positions.push(x, y, z);
     }
     const tri = pageTris[assigned[f]];
-    // pick the corner correspondence (cyclic — no mirroring) that minimises
+    // pick the corner correspondence (cyclic - no mirroring) that minimises
     // how much the scrap spins while it travels to its facet
     const pcu = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
     const pcv = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
@@ -198,7 +198,7 @@ export function buildPaperBallMesh(seed: number, aspect: number): PaperBallMesh 
     }
     // scraps fold in the order the peel reaches them, sweeping from the
     // grabbed corner. The 0.12 floor keeps the drag's start a pure page flip;
-    // spread and jitter stay small so neighbours travel near-together —
+    // spread and jitter stay small so neighbours travel near-together -
     // otherwise the sheet opens gaps and reads as cut, not crumpled
     const dCorner =
       Math.hypot(pcu - 1, pcv / aspect) / Math.hypot(1, 1 / aspect);

@@ -33,7 +33,7 @@ const HANDLE_SIZE = 64;
  * The deck of newspaper pages. Exactly two pages are mounted: the current one
  * and the one beneath it (revealed by the crinkle swipe / crumple delete).
  * Both render in one keyed list so that promoting the under page to current
- * reorders props on the same element — never a remount, never a flicker.
+ * reorders props on the same element - never a remount, never a flicker.
  */
 export function NewsStack() {
   const { width, height } = useWindowDimensions();
@@ -41,7 +41,7 @@ export function NewsStack() {
   const [articles, setArticles] = useState<Article[]>(ARTICLES);
   const [index, setIndex] = useState(0);
   const [underIndex, setUnderIndex] = useState<number | null>(null);
-  // id of the article currently frozen in the snapshot — the only page that hides
+  // id of the article currently frozen in the snapshot - the only page that hides
   const [snapArticleId, setSnapArticleId] = useState<string | null>(null);
 
   const snapshot = useSnapshot();
@@ -58,7 +58,7 @@ export function NewsStack() {
 
   const currentArticle = articles[index];
 
-  // depend on snapshot.take (stable), NOT the snapshot object — its identity
+  // depend on snapshot.take (stable), NOT the snapshot object - its identity
   // changes every render, and an unstable identity here loops
   // take → setImage → render → take until Hermes OOMs
   const takeSnapshotFn = snapshot.take;
@@ -68,7 +68,7 @@ export function NewsStack() {
   }, [currentArticle.id, takeSnapshotFn]);
 
   // pre-warm: the first makeImageFromView after launch is slow (>1s cold Metal
-  // pipeline) — capture ahead so the shaders have an image at gesture start
+  // pipeline) - capture ahead so the shaders have an image at gesture start
   useEffect(() => {
     const id = setTimeout(takeSnapshot, 400);
     return () => clearTimeout(id);
@@ -118,7 +118,7 @@ export function NewsStack() {
   const overscrollRamp = useSharedValue(1);
   const overscrollSeed = useSharedValue(0);
   const overscrollRelease = useSharedValue(0);
-  // stable identity — a fresh object every render would defeat PageHolder's memo
+  // stable identity - a fresh object every render would defeat PageHolder's memo
   const overscroll: OverscrollWiring = useMemo(
     () => ({
       y: overscrollY,
@@ -143,7 +143,7 @@ export function NewsStack() {
 
   // Momentum overscroll (coasting past the edge with no finger down): the
   // touch-down snapshot is stale, so grab a fresh one the moment the bounce
-  // begins — the content is pinned at the edge, so the capture is edge-exact.
+  // begins - the content is pinned at the edge, so the capture is edge-exact.
   const momentumPending = useRef(false);
   const momentumGen = useRef(0);
   const requestMomentumSnapshot = useCallback(() => {
@@ -214,7 +214,7 @@ export function NewsStack() {
     tracker: touch.tracker,
   });
 
-  // After the index/articles swap has rendered, the old page is unmounted —
+  // After the index/articles swap has rendered, the old page is unmounted -
   // only now is it safe to reset gesture state (un-hiding nothing, overlays off).
   useEffect(() => {
     state.progress.value = 0;
@@ -289,7 +289,7 @@ export function NewsStack() {
         <GestureDetector gesture={binPan}>
           <View collapsable={false} style={[styles.handle, { top: insets.top + 4 }]} />
         </GestureDetector>
-        {/* demo fingertip — a translucent circle following any touch */}
+        {/* demo fingertip - a translucent circle following any touch */}
         <TouchIndicator x={touch.x} y={touch.y} pressed={touch.pressed} />
       </View>
     </GestureDetector>

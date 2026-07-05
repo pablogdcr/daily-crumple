@@ -11,12 +11,12 @@ import {
 import { useWindowDimensions } from 'react-native';
 
 export interface CrinkleGestureState {
-  /** 0..1 — how far the page has been pulled off (drives shader + reveal). */
+  /** 0..1 - how far the page has been pulled off (drives shader + reveal). */
   progress: SharedValue<number>;
   /** Current finger position (page coords). */
   touchX: SharedValue<number>;
   touchY: SharedValue<number>;
-  /** Finger position at activation — folds are anchored here (top/middle/bottom differ). */
+  /** Finger position at activation - folds are anchored here (top/middle/bottom differ). */
   originX: SharedValue<number>;
   originY: SharedValue<number>;
   /** -1 = pulling left (next article), +1 = pulling right (previous). */
@@ -25,23 +25,23 @@ export interface CrinkleGestureState {
   seed: SharedValue<number>;
   /** 1 while the overlay should draw (and the live page hide). */
   active: SharedValue<number>;
-  /** 1 while a commit/cancel animation is settling — blocks new input. */
+  /** 1 while a commit/cancel animation is settling - blocks new input. */
   settling: SharedValue<number>;
 }
 
 interface Options {
-  /** Capture the page image (JS thread) — called at touch-down. */
+  /** Capture the page image (JS thread) - called at touch-down. */
   takeSnapshot: () => void;
   /** Mount the correct under page for this drag direction. dir: -1 next, +1 prev. */
   chooseUnder: (dir: number) => void;
   /** Promote the under page (progress reached 1). */
   commit: () => void;
-  /** Gesture cancelled — under page back to default. */
+  /** Gesture cancelled - under page back to default. */
   cancel: () => void;
   /** Set from React so the worklet knows the deck bounds. */
   hasNext: SharedValue<boolean>;
   hasPrev: SharedValue<boolean>;
-  /** Touch-indicator tracker — must survive this gesture activating. */
+  /** Touch-indicator tracker - must survive this gesture activating. */
   tracker: GestureType;
 }
 
@@ -51,7 +51,7 @@ const COMMIT_VELOCITY = 800;
 export function usePageGestures(opts: Options) {
   const { width } = useWindowDimensions();
 
-  // All shared values are declared BEFORE the gesture builders — RNGH snapshots
+  // All shared values are declared BEFORE the gesture builders - RNGH snapshots
   // the worklet closures at creation time.
   const progress = useSharedValue(0);
   const touchX = useSharedValue(0);
@@ -108,7 +108,7 @@ export function usePageGestures(opts: Options) {
       'worklet';
       if (settling.value || !active.value) return;
       const blocked = dir.value < 0 ? !hasNext.value : !hasPrev.value;
-      // recompute from the end event — trailing Move events can be coalesced,
+      // recompute from the end event - trailing Move events can be coalesced,
       // leaving progress.value stale at release
       const endProgress = Math.max(
         progress.value,
@@ -126,14 +126,14 @@ export function usePageGestures(opts: Options) {
           (finished) => {
             if (finished) {
               // active/settling stay set until React has promoted the under
-              // page (reset in an effect) — resetting here would un-hide the
+              // page (reset in an effect) - resetting here would un-hide the
               // old page for a frame before the index swap lands.
               scheduleOnRN(commit);
             }
           },
         );
       } else {
-        // overshootClamping: the folds relax flat and STOP — a spring dipping
+        // overshootClamping: the folds relax flat and STOP - a spring dipping
         // below 0 re-bulges the paper and reads as a rubbery bounce
         progress.value = withSpring(
           0,

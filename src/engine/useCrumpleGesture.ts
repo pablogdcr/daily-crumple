@@ -14,7 +14,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 export interface CrumpleState {
   /** 0..1 crumple progress (0 = flat page, 1 = paper ball). */
   t: SharedValue<number>;
-  /** Crumple center — follows the finger, settles to screen center on confirm. */
+  /** Crumple center - follows the finger, settles to screen center on confirm. */
   cx: SharedValue<number>;
   cy: SharedValue<number>;
   /** 1 from drag start until the article is removed. */
@@ -23,7 +23,7 @@ export interface CrumpleState {
   throwU: SharedValue<number>;
   /** Per-gesture noise seed. */
   seed: SharedValue<number>;
-  /** 0..1 — the bin rises from below the bottom screen edge. */
+  /** 0..1 - the bin rises from below the bottom screen edge. */
   binRise: SharedValue<number>;
   /** Bin pulse scale on ball arrival. */
   binScale: SharedValue<number>;
@@ -33,17 +33,17 @@ interface Options {
   takeSnapshot: () => void;
   /** Mount the page revealed beneath the crumpling one. */
   chooseUnder: () => void;
-  /** Ball landed in the bin — haptics. */
+  /** Ball landed in the bin - haptics. */
   land: () => void;
-  /** Bin has sunk away — remove the article (state swap). */
+  /** Bin has sunk away - remove the article (state swap). */
   arrive: () => void;
   cancel: () => void;
-  /** False when this is the last article — delete is blocked. */
+  /** False when this is the last article - delete is blocked. */
   canDelete: SharedValue<boolean>;
-  /** The invisible top-right corner handle — sets the pull direction. */
+  /** The invisible top-right corner handle - sets the pull direction. */
   handleX: number;
   handleY: number;
-  /** Touch-indicator tracker — must survive this gesture activating. */
+  /** Touch-indicator tracker - must survive this gesture activating. */
   tracker: GestureType;
 }
 
@@ -111,7 +111,7 @@ export function useCrumpleGesture(opts: Options) {
       'worklet';
       if (settling.value || !active.value) return;
       settling.value = 1;
-      // recompute from the end event itself — trailing Move events can be
+      // recompute from the end event itself - trailing Move events can be
       // coalesced, leaving t.value stale at release
       const proj = e.translationX * dirX + e.translationY * dirY;
       const tEnd = Math.max(t.value, Math.min(Math.max(proj / requiredDist, 0), 1));
@@ -145,7 +145,7 @@ export function useCrumpleGesture(opts: Options) {
           );
         });
       } else {
-        // overshootClamping: the sheet relaxes flat and stops — no re-bulge
+        // overshootClamping: the sheet relaxes flat and stops - no re-bulge
         t.value = withSpring(
           0,
           { damping: 24, stiffness: 200, overshootClamping: true },

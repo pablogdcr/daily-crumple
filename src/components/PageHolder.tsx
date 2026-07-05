@@ -16,12 +16,12 @@ interface Props {
   crumple: CrumpleState;
   /** 1 while the overscroll crumple overlay is drawing. */
   overscrollActive: SharedValue<number>;
-  /** Scroll wiring — only the current page writes it. */
+  /** Scroll wiring - only the current page writes it. */
   overscroll?: OverscrollWiring;
   /** True only for the article frozen in the current snapshot. */
   shouldHide: boolean;
   pageRef?: React.RefObject<View | null>;
-  /** Touch-indicator tracker ref — the scroll gesture must not cancel it. */
+  /** Touch-indicator tracker ref - the scroll gesture must not cancel it. */
   scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
 }
 
@@ -42,7 +42,7 @@ export const PageHolder = memo(function PageHolder({
   pageRef,
   scrollSimultaneousWith,
 }: Props) {
-  // the snapshotted page hides while an overlay draws it — never both visible
+  // the snapshotted page hides while an overlay draws it - never both visible
   const style = useAnimatedStyle(
     () => ({
       opacity:

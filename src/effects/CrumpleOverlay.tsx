@@ -29,7 +29,7 @@ const GRAYS = Array.from({ length: 101 }, (_, i) => {
     .padStart(2, '0');
   return `#${v}${v}${v}`;
 });
-// additive paper-white by intensity — lit facets wash toward blank paper.
+// additive paper-white by intensity - lit facets wash toward blank paper.
 // Drawn with blendMode="plus": black adds nothing, so unlit faces are no-ops.
 const WHITES = Array.from({ length: 101 }, (_, i) => {
   const k = i / 100;
@@ -52,7 +52,7 @@ const EMPTY_BALL = {
  * texture coords tile the page exactly). At t=0 they reassemble the page
  * pixel-perfectly; as the drag progresses the page gathers toward the finger
  * (same wrap math the old 2D shader used, now driven by fold progress) while
- * each scrap folds — staggered — onto its facet of the displaced icosphere.
+ * each scrap folds - staggered - onto its facet of the displaced icosphere.
  * No 2D→3D handoff exists: the paper you see folding IS the ball. The throw
  * then tumbles the finished ball along a Bézier arc into the bin.
  */
@@ -66,12 +66,12 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
   const cy = height / 2;
   const ballR = 0.145 * width;
   // the throw drops the ball into the mouth of the bin risen at the bottom;
-  // the target sits just below the rim — the ball stays visible through the
+  // the target sits just below the rim - the ball stays visible through the
   // transparent holes of the wire mesh
   const bin = binGeometry(width, height);
   const tgtX = bin.cx;
   const tgtY = bin.mouthY + bin.ry + ballR * 0.6;
-  // control point above the chord — a small up-toss before the drop
+  // control point above the chord - a small up-toss before the drop
   const ctrlX = cx + 26;
   const ctrlY = cy - 0.17 * height;
 
@@ -85,13 +85,13 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
 
     // fold progress spans the WHOLE gesture: 0 = the exact flat page
     const m = Math.min(Math.max(tt, 0), 1);
-    // gather the un-balled paper toward the finger — keeps half-folded
+    // gather the un-balled paper toward the finger - keeps half-folded
     // scraps compact around the ball instead of shredding across the page
     const gather = m * (2 - m);
     const KINV = 1 / (1 - 0.48 * gather);
     // corner peel: a crease advances from the grabbed corner along the pull
     // diagonal at half the pull (fold mechanics), and the paper behind it
-    // flips over — the page turns like a pulled corner before it balls up
+    // flips over - the page turns like a pulled corner before it balls up
     const diag = Math.hypot(width, height);
     const pdx = -width / diag; // pull direction: top-right → bottom-left
     const pdy = height / diag;
@@ -106,10 +106,10 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
     // once landed, the ball rides the sinking basket down (it stays visible
     // through the mesh) and leaves the screen with it
     if (u > 0.99) by += (1 - state.binRise.value) * bin.hiddenY;
-    // slight shrink only — the can is near the viewer, not across the room
+    // slight shrink only - the can is near the viewer, not across the room
     const pr = ballR * (1 - 0.3 * u);
 
-    // tumble: fixed axis, angle driven by the flight ONLY — during the fold
+    // tumble: fixed axis, angle driven by the flight ONLY - during the fold
     // the wrap stays oriented to the viewer (page centre on the front pole)
     const angle = u * 5.5;
     const al = Math.hypot(0.3, 1, 0.25);
@@ -157,7 +157,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
         const rz = z * ca + crz * sa + kz * dotkv * (1 - ca);
 
         // fold origin: this vertex's spot on the page, rotated about the
-        // advancing crease and capped at a full fold-over — near the crease
+        // advancing crease and capped at a full fold-over - near the crease
         // the paper is mid-turn, further back it lies flat, turned over
         const o2 = (f * 3 + i) * 2;
         const px = uvs[o2] * width;
@@ -194,7 +194,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
 
         rp.push([sx + (rx - sx) * mf, sy + (ry - sy) * mf, sz + (rz - sz) * mf]);
       }
-      // mid-blend a scrap's edges leave its neighbours' (different facets) —
+      // mid-blend a scrap's edges leave its neighbours' (different facets) -
       // inflate about the centroid so paper overlaps instead of opening
       // slits; tapers to 0 at both ends so page and ball stay exact
       const infl = 1.55 * mf * (1 - mf);
@@ -208,7 +208,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
           rp[i][2] += (rp[i][2] - gz) * infl;
         }
       }
-      // face normal — two-sided while folding (a scrap may show its back)
+      // face normal - two-sided while folding (a scrap may show its back)
       const ax = rp[1][0] - rp[0][0];
       const ay = rp[1][1] - rp[0][1];
       const az = rp[1][2] - rp[0][2];
@@ -237,7 +237,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
       const facetLight = Math.min(1, 0.58 + 0.5 * d * d);
       const light = 1 + (facetLight - 1) * fs;
       const g = GRAYS[Math.round(light * 100)];
-      // facets catching the light wash toward blank paper — print fades there
+      // facets catching the light wash toward blank paper - print fades there
       const wash = Math.min(Math.max((light - 0.78) * 2.2, 0), 0.6) * fs;
       const w = WHITES[Math.round(wash * 100)];
 
@@ -306,7 +306,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
           <Oval rect={shadowRect} color="black" opacity={shadowOpacity}>
             <BlurMask blur={16} style="normal" />
           </Oval>
-          {/* the can's interior renders behind the ball, its body in front —
+          {/* the can's interior renders behind the ball, its body in front -
               the ball visibly drops INSIDE */}
           <TrashBin
             part="back"
@@ -316,7 +316,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
             height={height}
           />
           <Group opacity={opacity3D}>
-            {/* pass 1: the article texture mapped onto the facets, unlit —
+            {/* pass 1: the article texture mapped onto the facets, unlit -
                 Vertices' own colors+blendMode combine unreliably, so lighting
                 is applied by the follow-up passes over the same triangles */}
             <Vertices vertices={ballVerts} textures={ballTexs}>
@@ -326,11 +326,11 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
                 rect={{ x: 0, y: 0, width, height }}
               />
             </Vertices>
-            {/* pass 2: multiply per-facet grays — the crease shading */}
+            {/* pass 2: multiply per-facet grays - the crease shading */}
             <Group blendMode="multiply">
               <Vertices vertices={ballVerts} colors={ballCols} />
             </Group>
-            {/* pass 3: additive white — lit facets wash toward blank paper */}
+            {/* pass 3: additive white - lit facets wash toward blank paper */}
             <Group blendMode="plus">
               <Vertices vertices={ballVerts} colors={ballWash} />
             </Group>
