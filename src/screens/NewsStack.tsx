@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
@@ -121,15 +121,28 @@ export function NewsStack() {
   const overscrollRamp = useSharedValue(1);
   const overscrollSeed = useSharedValue(0);
   const overscrollRelease = useSharedValue(0);
-  const overscroll: OverscrollWiring = {
-    y: overscrollY,
-    max: overscrollMax,
-    armed: overscrollArmed,
-    ready: overscrollReady,
-    ramp: overscrollRamp,
-    seed: overscrollSeed,
-    release: overscrollRelease,
-  };
+  // stable identity: shared values never change, and a fresh object every
+  // render would defeat PageHolder's memo
+  const overscroll: OverscrollWiring = useMemo(
+    () => ({
+      y: overscrollY,
+      max: overscrollMax,
+      armed: overscrollArmed,
+      ready: overscrollReady,
+      ramp: overscrollRamp,
+      seed: overscrollSeed,
+      release: overscrollRelease,
+    }),
+    [
+      overscrollY,
+      overscrollMax,
+      overscrollArmed,
+      overscrollReady,
+      overscrollRamp,
+      overscrollSeed,
+      overscrollRelease,
+    ],
+  );
   const overscrollActive = useDerivedValue<number>(() => overscrollShowing(overscroll));
 
   // Momentum overscroll (a fling coasting past the edge, no finger down):
@@ -303,7 +316,9 @@ interface PageHolderProps {
   scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
 }
 
-function PageHolder({
+// memoized: NewsStack re-renders on every snapshot landing (mid-gesture);
+// without memo both full article pages would re-render their text each time
+const PageHolder = memo(function PageHolder({
   article,
   page,
   total,
@@ -338,18 +353,12 @@ function PageHolder({
       />
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paperDark },
   deck: { flex: 1 },
-  pageHolder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
+  pageHolder: StyleSheet.absoluteFill,
   handle: {
     position: 'absolute',
     right: 10,

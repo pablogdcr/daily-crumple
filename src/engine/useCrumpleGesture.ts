@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Gesture, type GestureType } from 'react-native-gesture-handler';
 import { useWindowDimensions } from 'react-native';
 import {
@@ -160,6 +161,11 @@ export function useCrumpleGesture(opts: Options) {
       }
     });
 
-  const state: CrumpleState = { t, cx, cy, active, throwU, seed, binRise, binScale };
+  // stable identity: shared values never change, and a fresh object every
+  // render would defeat PageHolder's memo
+  const state: CrumpleState = useMemo(
+    () => ({ t, cx, cy, active, throwU, seed, binRise, binScale }),
+    [t, cx, cy, active, throwU, seed, binRise, binScale],
+  );
   return { binPan, state, settling };
 }
