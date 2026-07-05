@@ -12,18 +12,16 @@ import Animated, {
 const SIZE = 54;
 
 /**
- * A discreet fingertip for demo recordings: a translucent ink circle that
- * follows any touch. Tracking is a Manual gesture that never activates, so it
- * observes every touch without competing for it — but the page gestures and
- * the ScrollView must list it as simultaneous, or RNGH cancels it (and the
- * circle vanishes) the moment they activate.
+ * Fingertip for demo recordings: a translucent ink circle following any touch.
+ * The tracker is a Manual gesture that never activates, so it observes every
+ * touch without competing — but page gestures and the ScrollView must list it
+ * as simultaneous, or RNGH cancels it the moment they activate.
  */
 export function useTouchIndicator() {
   const x = useSharedValue(0);
   const y = useSharedValue(0);
   const pressed = useSharedValue(0);
-  // old-style ref so the RNGH ScrollView can list the tracker in
-  // simultaneousHandlers (the prop API predates the Gesture objects)
+  // old-style ref so the ScrollView can list the tracker in simultaneousHandlers
   const ref = useRef<GestureType | undefined>(undefined);
 
   const tracker = useMemo(

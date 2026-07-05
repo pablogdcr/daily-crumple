@@ -117,9 +117,8 @@ export function useCrumpleGesture(opts: Options) {
       const tEnd = Math.max(t.value, Math.min(Math.max(proj / requiredDist, 0), 1));
       if (tEnd > CONFIRM_T) {
         t.value = tEnd;
-        // confirm: finish the ball at screen center, then drop it in the bin.
-        // Only now does the bin surface from the bottom edge — near critically
-        // damped, so it's up and steady before the throw lands
+        // confirm: finish the ball at screen center, then drop it in the bin;
+        // only now does the bin surface from the bottom edge
         binRise.value = withSpring(1, { damping: 20, stiffness: 200 });
         cx.value = withTiming(width / 2, { duration: 240 });
         cy.value = withTiming(height / 2, { duration: 240 });

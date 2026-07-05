@@ -85,19 +85,16 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
 
     // fold progress spans the WHOLE gesture: 0 = the exact flat page
     const m = Math.min(Math.max(tt, 0), 1);
-    // continuous gather of the un-balled paper toward the finger — identity
-    // at m=0, tight wrap by m=1; keeps half-folded scraps compact around
-    // the ball instead of shredding across the page
+    // gather the un-balled paper toward the finger — keeps half-folded
+    // scraps compact around the ball instead of shredding across the page
     const gather = m * (2 - m);
     const KINV = 1 / (1 - 0.48 * gather);
-    // corner peel: a crease line advances from the grabbed corner (top
-    // right) along the pull diagonal, and the paper behind it flips over —
-    // the page visibly turns like a pulled corner before it balls up
+    // corner peel: a crease advances from the grabbed corner along the pull
+    // diagonal at half the pull (fold mechanics), and the paper behind it
+    // flips over — the page turns like a pulled corner before it balls up
     const diag = Math.hypot(width, height);
     const pdx = -width / diag; // pull direction: top-right → bottom-left
     const pdy = height / diag;
-    // the crease travels at half the pull (fold mechanics): the flipped
-    // corner tip then lands right around the finger, never past it
     const crease = m * diag * 0.24;
     const curlR = 0.125 * width;
 
@@ -159,12 +156,9 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
         const ry = y * ca + cry * sa + ky * dotkv * (1 - ca);
         const rz = z * ca + crz * sa + kz * dotkv * (1 - ca);
 
-        // fold origin: this vertex's spot on the page, flipped over the
-        // advancing crease. Each point rotates about the crease line, capped
-        // at a full fold-over: near the crease the paper is mid-turn (a
-        // bounded curl, height ≤ ~1.6·curlR), further back it lies flat on
-        // the page, turned over — so the flipped corner arrives right where
-        // the ball forms, and the blend to the facet is a short trip
+        // fold origin: this vertex's spot on the page, rotated about the
+        // advancing crease and capped at a full fold-over — near the crease
+        // the paper is mid-turn, further back it lies flat, turned over
         const o2 = (f * 3 + i) * 2;
         const px = uvs[o2] * width;
         const py = uvs[o2 + 1] * height;
@@ -183,9 +177,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
           qz = wPeel * Math.sin(th) + 6 * (th / Math.PI);
           peelAcc += th;
         }
-        // gather the peeled sheet toward the finger (same wrap math as the
-        // old 2D shader) — the peel gives the early flip its character, the
-        // gather keeps the mid-gesture sheet wrapped around the ball
+        // wrap the peeled sheet around the forming ball
         let dxp = qx - bx;
         let dyp = qy - by;
         const rs = Math.hypot(dxp, dyp) || 1;
@@ -202,11 +194,9 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
 
         rp.push([sx + (rx - sx) * mf, sy + (ry - sy) * mf, sz + (rz - sz) * mf]);
       }
-      // mid-blend, a scrap's edges leave its neighbours' (they head to
-      // different facets) — inflate each scrap about its centroid so
-      // neighbours overlap a touch instead of opening slits: paper overlaps,
-      // it never cuts. Tapers to exactly 0 at both ends, so the flat page
-      // and the finished ball stay exact
+      // mid-blend a scrap's edges leave its neighbours' (different facets) —
+      // inflate about the centroid so paper overlaps instead of opening
+      // slits; tapers to 0 at both ends so page and ball stay exact
       const infl = 1.55 * mf * (1 - mf);
       if (infl > 0.001) {
         const gx = (rp[0][0] + rp[1][0] + rp[2][0]) / 3;
@@ -239,10 +229,8 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
         nz = -nz;
       }
 
-      // paper bounces light — high ambient floor, d² for facet contrast on
-      // top; scraps still flat on the page keep the page's own brightness.
-      // Peeled-but-not-yet-balled scraps take facet lighting too, so the
-      // turning flap shades like paper instead of a flat copy of the page
+      // high ambient floor + d² facet contrast; peeled-but-not-yet-balled
+      // scraps take facet lighting too, so the turning flap shades like paper
       const pf = Math.min(peelAcc / (3 * Math.PI), 1);
       const fs = Math.max(mf, pf * 0.85);
       const d = Math.max((nx * lx + ny * ly + nz * lz) / ll, 0);
@@ -287,9 +275,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
   const ballCols = useDerivedValue(() => ball.value.c);
   const ballWash = useDerivedValue(() => ball.value.w);
 
-  // rounded drop shadow just under the ball itself — the ball floats toward
-  // the viewer over the page, so its shadow is a soft near-circle behind it,
-  // offset down-right (light comes from the top-left)
+  // soft near-circle drop shadow behind the ball, offset down-right
   const shadowRect = useDerivedValue(() => {
     const u = state.throwU.value;
     const iu = 1 - u;
@@ -307,9 +293,7 @@ export function CrumpleOverlay({ image, state, width, height }: Props) {
     };
   });
   const shadowOpacity = useDerivedValue(() => {
-    // shadow deepens as the paper lifts off the page and balls up —
-    // a flat page shouldn't cast a ball's shadow; it fades out entirely
-    // during the throw (the ball leaves the page for the bin)
+    // deepens as the paper balls up, fades out during the throw
     const fold = Math.min(Math.max((state.t.value - 0.35) / 0.65, 0), 1);
     const u = state.throwU.value;
     return state.active.value * fold * 0.25 * (1 - u) * (1 - u);

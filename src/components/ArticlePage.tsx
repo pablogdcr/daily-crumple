@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
@@ -13,37 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Article } from '../data/articles';
 import type { OverscrollWiring } from '../effects/OverscrollOverlay';
 import { colors, fonts, layout } from '../theme';
+import { RaisedCap } from './RaisedCap';
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const EDITION_DATE = 'Wednesday, July 2, 2026';
-
-/** Ascent room the raised cap needs — becomes the first line's height. */
-const CAP_BOX_HEIGHT = 34;
-
-/**
- * The raised cap, mounted as an inline view attachment. A nested Text segment
- * with a taller lineHeight inflates EVERY line of the paragraph on iOS (the
- * paragraph style is paragraph-wide), and matching the body lineHeight clips
- * the glyph. An inline view only grows the line that contains it — so the
- * first line gets the cap's height and the rest keep the body leading. The
- * box width tracks the measured glyph (letters vary), and the glyph hangs
- * below the box just enough to sit on the first line's baseline.
- */
-function RaisedCap({ letter }: { letter: string }) {
-  const [width, setWidth] = useState(26);
-  return (
-    <View style={{ width, height: CAP_BOX_HEIGHT }}>
-      <Text
-        style={styles.dropCap}
-        numberOfLines={1}
-        onLayout={(e) => setWidth(Math.ceil(e.nativeEvent.layout.width))}
-      >
-        {letter}
-      </Text>
-    </View>
-  );
-}
 
 interface Props {
   article: Article;
@@ -79,9 +52,9 @@ export function ArticlePage({
   const leftCol = rest.slice(0, split);
   const rightCol = rest.slice(split);
 
-  // UI-thread scroll state for the overscroll crumple. Arming happens at
-  // drag START: the effect only runs for a pull that began at the edge, so
-  // the touch-down snapshot is guaranteed to match the frozen content.
+  // UI-thread scroll state for the overscroll crumple. Arming happens at drag
+  // START: the effect only runs for a pull that began at the edge, so the
+  // touch-down snapshot is guaranteed to match the frozen content.
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
       if (!overscroll) return;
@@ -136,10 +109,8 @@ export function ArticlePage({
     },
   });
 
-  // While overscrolled, cancel the native rubber-band translation so the
-  // content stays pinned at the edge: the crumple shader owns all visible
-  // motion, and a momentum snapshot (taken mid-bounce) captures the page
-  // exactly as it rests at the edge.
+  // while overscrolled, cancel the native rubber-band translation so the
+  // content stays pinned at the edge — the crumple shader owns all visible motion
   const pinStyle = useAnimatedStyle(() => {
     if (!overscroll) return { transform: [{ translateY: 0 }] };
     const y = overscroll.y.value;
@@ -150,7 +121,11 @@ export function ArticlePage({
 
   return (
     <View ref={ref} collapsable={false} style={styles.page}>
-      <Image source={require('../../assets/paper-grain.png')} style={styles.grain} resizeMode="repeat" />
+      <Image
+        source={require('../../assets/paper-grain.png')}
+        style={styles.grain}
+        resizeMode="repeat"
+      />
       <AnimatedScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -165,84 +140,85 @@ export function ArticlePage({
         simultaneousHandlers={scrollSimultaneousWith}
       >
         <Animated.View style={pinStyle}>
-        {/* ─── Masthead ─── */}
-        <View style={styles.topRule} />
-        {/* right slot stays empty — the tear-here coupon owns that corner */}
-        <View style={styles.dateRow}>
-          <Text style={[styles.dateText, styles.dateLeft]}>VOL. CCXIV — No. 42</Text>
-          <Text style={[styles.dateText, styles.dateCenter]}>
-            {`${EDITION_DATE.toUpperCase()} — PAGE ${page} OF ${total}`}
+          {/* ─── Masthead ─── */}
+          <View style={styles.topRule} />
+          <View style={styles.dateRow}>
+            <Text style={[styles.dateText, styles.dateLeft]}>VOL. CCXIV — No. 42</Text>
+            <Text style={[styles.dateText, styles.dateCenter]}>
+              {`${EDITION_DATE.toUpperCase()} — PAGE ${page} OF ${total}`}
+            </Text>
+            {/* right slot stays empty — the tear-here coupon owns that corner */}
+            <Text style={[styles.dateText, styles.dateRight]} />
+          </View>
+          <Text style={styles.masthead} numberOfLines={1} adjustsFontSizeToFit>
+            The Daily Crumple
           </Text>
-          <Text style={[styles.dateText, styles.dateRight]} />
-        </View>
-        <Text style={styles.masthead} numberOfLines={1} adjustsFontSizeToFit>
-          The Daily Crumple
-        </Text>
-        <View style={styles.doubleRule}>
-          <View style={styles.doubleRuleThick} />
-          <View style={styles.doubleRuleThin} />
-        </View>
+          <View style={styles.doubleRule}>
+            <View style={styles.doubleRuleThick} />
+            <View style={styles.doubleRuleThin} />
+          </View>
 
-        {/* ─── Kicker ─── */}
-        <View style={styles.kickerRow}>
-          <View style={styles.kickerRule} />
-          <Text style={styles.kicker}>{article.kicker.toUpperCase()}</Text>
-          <View style={styles.kickerRule} />
-        </View>
+          {/* ─── Kicker ─── */}
+          <View style={styles.kickerRow}>
+            <View style={styles.kickerRule} />
+            <Text style={styles.kicker}>{article.kicker.toUpperCase()}</Text>
+            <View style={styles.kickerRule} />
+          </View>
 
-        {/* ─── Headline block ─── */}
-        <Text style={styles.headline}>{article.headline}</Text>
-        {article.subhead ? <Text style={styles.subhead}>{article.subhead}</Text> : null}
-        <View style={styles.bylineBlock}>
-          <View style={styles.hairline} />
-          <Text style={styles.byline}>{article.byline}</Text>
-          <View style={styles.hairline} />
-        </View>
-
-        {/* ─── Lead with raised cap on the dateline ─── */}
-        <Text style={styles.lead}>
-          <RaisedCap letter={article.dateline.charAt(0)} />
-          <Text style={styles.bodyBoldInline}>{article.dateline.slice(1)} </Text>
-          {lead}
-        </Text>
-
-        {/* ─── Pull quote ─── */}
-        {article.pullQuote ? (
-          <View style={styles.pullQuoteBlock}>
+          {/* ─── Headline block ─── */}
+          <Text style={styles.headline}>{article.headline}</Text>
+          {article.subhead ? <Text style={styles.subhead}>{article.subhead}</Text> : null}
+          <View style={styles.bylineBlock}>
             <View style={styles.hairline} />
-            <Text style={styles.pullQuote}>{article.pullQuote}</Text>
+            <Text style={styles.byline}>{article.byline}</Text>
             <View style={styles.hairline} />
           </View>
-        ) : null}
 
-        {/* ─── Two-column body ─── */}
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            {leftCol.map((p, i) => (
-              <Text key={i} style={styles.body}>
-                {p}
-              </Text>
-            ))}
-          </View>
-          <View style={styles.columnRule} />
-          <View style={styles.column}>
-            {rightCol.map((p, i) => (
-              <Text key={i} style={styles.body}>
-                {p}
-              </Text>
-            ))}
-          </View>
-        </View>
+          {/* ─── Lead with raised cap on the dateline ─── */}
+          <Text style={styles.lead}>
+            <RaisedCap letter={article.dateline.charAt(0)} />
+            <Text style={styles.bodyBoldInline}>{article.dateline.slice(1)} </Text>
+            {lead}
+          </Text>
 
-        {/* ─── End slug ─── */}
-        <Text style={styles.endSlug}>✦ ✦ ✦</Text>
-        <Text style={styles.footer}>THE DAILY CRUMPLE — ALL THE NEWS THAT’S FIT TO FOLD</Text>
+          {/* ─── Pull quote ─── */}
+          {article.pullQuote ? (
+            <View style={styles.pullQuoteBlock}>
+              <View style={styles.hairline} />
+              <Text style={styles.pullQuote}>{article.pullQuote}</Text>
+              <View style={styles.hairline} />
+            </View>
+          ) : null}
+
+          {/* ─── Two-column body ─── */}
+          <View style={styles.columns}>
+            <View style={styles.column}>
+              {leftCol.map((p, i) => (
+                <Text key={i} style={styles.body}>
+                  {p}
+                </Text>
+              ))}
+            </View>
+            <View style={styles.columnRule} />
+            <View style={styles.column}>
+              {rightCol.map((p, i) => (
+                <Text key={i} style={styles.body}>
+                  {p}
+                </Text>
+              ))}
+            </View>
+          </View>
+
+          {/* ─── End slug ─── */}
+          <Text style={styles.endSlug}>✦ ✦ ✦</Text>
+          <Text style={styles.footer}>
+            THE DAILY CRUMPLE — ALL THE NEWS THAT’S FIT TO FOLD
+          </Text>
         </Animated.View>
       </AnimatedScrollView>
 
-      {/* ─── Corner perforation — the delete affordance, printed on the page
-          like a coupon cutout. Sits under the invisible drag handle; tearing
-          along it crumples the page into the bin. ─── */}
+      {/* corner perforation — the delete affordance, printed like a coupon
+          cutout under the invisible drag handle */}
       <View pointerEvents="none" style={[styles.tearCorner, { top: insets.top + 16 }]}>
         <View style={styles.tearRow}>
           <Text style={styles.tearScissors}>✄</Text>
@@ -267,9 +243,15 @@ const styles = StyleSheet.create({
     height: undefined,
     opacity: 0.055,
   },
-  scroll: { flex: 1 },
+  scroll: {
+    flex: 1,
+  },
 
-  topRule: { height: 2, backgroundColor: colors.ink, marginBottom: 4 },
+  topRule: {
+    height: 2,
+    backgroundColor: colors.ink,
+    marginBottom: 4,
+  },
   dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -283,9 +265,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     color: colors.inkSoft,
   },
-  dateLeft: { flex: 1.25, textAlign: 'left' },
-  dateCenter: { flex: 2.3, textAlign: 'center' },
-  dateRight: { flex: 0.75, textAlign: 'right' },
+  dateLeft: {
+    flex: 1.25,
+    textAlign: 'left',
+  },
+  dateCenter: {
+    flex: 2.3,
+    textAlign: 'center',
+  },
+  dateRight: {
+    flex: 0.75,
+    textAlign: 'right',
+  },
   masthead: {
     fontFamily: fonts.masthead,
     fontSize: 46,
@@ -294,9 +285,18 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 2,
   },
-  doubleRule: { marginBottom: 10 },
-  doubleRuleThick: { height: 3, backgroundColor: colors.ink },
-  doubleRuleThin: { height: 1, backgroundColor: colors.ink, marginTop: 2 },
+  doubleRule: {
+    marginBottom: 10,
+  },
+  doubleRuleThick: {
+    height: 3,
+    backgroundColor: colors.ink,
+  },
+  doubleRuleThin: {
+    height: 1,
+    backgroundColor: colors.ink,
+    marginTop: 2,
+  },
 
   kickerRow: {
     flexDirection: 'row',
@@ -304,7 +304,11 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  kickerRule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.rule },
+  kickerRule: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.rule,
+  },
   kicker: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
@@ -329,8 +333,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 8,
   },
-  bylineBlock: { alignItems: 'stretch', gap: 5, marginBottom: 14 },
-  hairline: { height: StyleSheet.hairlineWidth, backgroundColor: colors.rule },
+  bylineBlock: {
+    alignItems: 'stretch',
+    gap: 5,
+    marginBottom: 14,
+  },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.rule,
+  },
   byline: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
@@ -347,18 +358,15 @@ const styles = StyleSheet.create({
     textAlign: 'justify' as const,
     marginBottom: 12,
   },
-  dropCap: {
-    position: 'absolute',
-    left: 0,
-    // hang below the cap box so the glyph's baseline meets the text baseline
-    bottom: -9,
-    fontFamily: fonts.headline,
-    fontSize: 40,
-    color: colors.ink,
+  bodyBoldInline: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
   },
-  bodyBoldInline: { fontFamily: fonts.bodyBold, fontSize: 13.5 },
 
-  pullQuoteBlock: { gap: 8, marginVertical: 10 },
+  pullQuoteBlock: {
+    gap: 8,
+    marginVertical: 10,
+  },
   pullQuote: {
     fontFamily: fonts.headlineItalic,
     fontSize: 18,
@@ -373,7 +381,9 @@ const styles = StyleSheet.create({
     gap: layout.columnGap,
     marginTop: 6,
   },
-  column: { flex: 1 },
+  column: {
+    flex: 1,
+  },
   columnRule: {
     width: StyleSheet.hairlineWidth,
     backgroundColor: colors.rule,
@@ -403,8 +413,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // perforation across the top-right corner, rotated onto the diagonal the
-  // delete drag follows
+  // rotated onto the diagonal the delete drag follows
   tearCorner: {
     position: 'absolute',
     right: -10,
