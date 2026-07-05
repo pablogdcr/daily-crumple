@@ -89,7 +89,7 @@ export function OverscrollOverlay({ image, wiring, width, height }: Props) {
   }));
 
   return (
-    <Canvas style={styles.canvas} pointerEvents="none">
+    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
       {image ? (
         <Group opacity={opacity}>
           <Fill>
@@ -107,12 +107,3 @@ export function OverscrollOverlay({ image, wiring, width, height }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  canvas: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-});

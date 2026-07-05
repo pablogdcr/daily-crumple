@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { ScrollView, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
@@ -54,6 +54,8 @@ interface Props {
   overscroll?: OverscrollWiring;
   /** Touch-indicator tracker ref — scrolling must not cancel it. */
   scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
+  /** Snapshot target — set only on the current page. */
+  ref?: React.Ref<View>;
 }
 
 /**
@@ -61,10 +63,14 @@ interface Props {
  * crinkle/crumple shaders (collapsable={false} so iOS keeps a real backing view),
  * so everything that should distort — paper color, grain, text — lives inside it.
  */
-export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
-  { article, page, total, overscroll, scrollSimultaneousWith },
+export function ArticlePage({
+  article,
+  page,
+  total,
+  overscroll,
+  scrollSimultaneousWith,
   ref,
-) {
+}: Props) {
   const insets = useSafeAreaInsets();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
 
@@ -248,23 +254,15 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
       </View>
     </View>
   );
-});
-
-const absoluteFill = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-} as const;
+}
 
 const styles = StyleSheet.create({
   page: {
-    ...absoluteFill,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.paper,
   },
   grain: {
-    ...absoluteFill,
+    ...StyleSheet.absoluteFill,
     width: undefined,
     height: undefined,
     opacity: 0.055,

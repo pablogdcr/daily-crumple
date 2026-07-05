@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Gesture, type GestureType } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
@@ -148,17 +149,22 @@ export function usePageGestures(opts: Options) {
       }
     });
 
-  const state: CrinkleGestureState = {
-    progress,
-    touchX,
-    touchY,
-    originX,
-    originY,
-    dir,
-    seed,
-    active,
-    settling,
-  };
+  // stable identity: shared values never change, and a fresh object every
+  // render would defeat PageHolder's memo
+  const state: CrinkleGestureState = useMemo(
+    () => ({
+      progress,
+      touchX,
+      touchY,
+      originX,
+      originY,
+      dir,
+      seed,
+      active,
+      settling,
+    }),
+    [progress, touchX, touchY, originX, originY, dir, seed, active, settling],
+  );
 
   return { crinklePan, state };
 }
