@@ -27,6 +27,13 @@ export interface OverscrollWiring {
   ramp: SharedValue<number>;
   /** Per-drag fold seed. */
   seed: SharedValue<number>;
+  /**
+   * Signed overscroll owned by the release spring. On drag end the ScrollView
+   * is settled at the edge instantly (a native rubber-band return swallows any
+   * touch landing during it) and this springs the crumple flat instead. While
+   * non-zero it owns the warp.
+   */
+  release: SharedValue<number>;
 }
 
 /** Signed overscroll in px: > 0 pulled down at the top, < 0 pulled up at the bottom. */
@@ -42,6 +49,7 @@ export function overscrollAmount(w: OverscrollWiring): number {
 /** 1 while the crumple layer should draw (and the live page hide). */
 export function overscrollShowing(w: OverscrollWiring): number {
   'worklet';
+  if (w.release.value !== 0) return 1; // relax spring still flattening the paper
   const over = overscrollAmount(w);
   if (over === 0) return 0;
   if (w.ready.value) return 1; // momentum: fresh edge snapshot landed
@@ -70,8 +78,13 @@ export function OverscrollOverlay({ image, wiring, width, height }: Props) {
 
   const uniforms = useDerivedValue(() => ({
     uRes: [width, height],
-    // ramp eases the warp in when a momentum snapshot takes over mid-bounce
-    uOver: overscrollAmount(wiring) * wiring.ramp.value,
+    // ramp eases the warp in when a momentum snapshot takes over mid-bounce;
+    // after drag end the release spring owns the warp (offset is already
+    // settled at the edge, so the live amount reads 0)
+    uOver:
+      wiring.release.value !== 0
+        ? wiring.release.value
+        : overscrollAmount(wiring) * wiring.ramp.value,
     uSeed: wiring.seed.value,
   }));
 
