@@ -2,15 +2,15 @@ executionPrerequisite: Daily Crumple freshly restarted (restart-app, then wait
   ≥3s for the snapshot pre-warm) on sim 59D14D69-D2BF-4406-8F61-5BCDA88298B2,
   showing page 1 of 7 at scroll top, Metro running on 8085. The flow starts with
   an invisible warm-up tap for the first-gesture flake; screen recording can
-  start before executing. Runs ~30s, ends on the second bin toss (page 3 of 5).
+  start before executing. Runs ~30s, ends on the second bin toss (page 2 of 5).
 steps:
   - echo: Warm-up tap (first synthetic gesture after restart is flaky) — invisible
       on screen
   - tool: gesture-tap
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
-      x: 0.5
-      y: 0.45
+      x: 0.06
+      y: 0.97
   - echo: "Beat 1: two flings to the article's end — the second lands in the edge
       and plays the momentum overscroll crumple"
   - tool: run-sequence
@@ -39,6 +39,7 @@ steps:
     delayMs: 800
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.5
@@ -103,6 +104,7 @@ steps:
     delayMs: 800
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.5
@@ -145,6 +147,7 @@ steps:
     delayMs: 1100
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.92
@@ -199,6 +202,7 @@ steps:
     delayMs: 1100
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.9
@@ -253,6 +257,7 @@ steps:
     delayMs: 1100
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.08
@@ -303,6 +308,7 @@ steps:
     delayMs: 1100
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.9
@@ -354,6 +360,7 @@ steps:
     delayMs: 2500
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
+      interpolate: 4
       events:
         - type: Down
           x: 0.9

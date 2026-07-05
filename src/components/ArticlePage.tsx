@@ -1,6 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -48,6 +48,8 @@ interface Props {
   total: number;
   /** Wired only on the current page — feeds the overscroll crumple. */
   overscroll?: OverscrollWiring;
+  /** Touch-indicator tracker ref — scrolling must not cancel it. */
+  scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
 }
 
 /**
@@ -56,7 +58,7 @@ interface Props {
  * so everything that should distort — paper color, grain, text — lives inside it.
  */
 export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
-  { article, page, total, overscroll },
+  { article, page, total, overscroll, scrollSimultaneousWith },
   ref,
 ) {
   const insets = useSafeAreaInsets();
@@ -122,6 +124,7 @@ export const ArticlePage = forwardRef<View, Props>(function ArticlePage(
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
+        simultaneousHandlers={scrollSimultaneousWith}
       >
         <Animated.View style={pinStyle}>
         {/* ─── Masthead ─── */}

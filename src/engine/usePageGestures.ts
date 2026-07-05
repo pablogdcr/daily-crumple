@@ -1,4 +1,4 @@
-import { Gesture } from 'react-native-gesture-handler';
+import { Gesture, type GestureType } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
   Easing,
@@ -40,6 +40,8 @@ interface Options {
   /** Set from React so the worklet knows the deck bounds. */
   hasNext: SharedValue<boolean>;
   hasPrev: SharedValue<boolean>;
+  /** Touch-indicator tracker — must survive this gesture activating. */
+  tracker: GestureType;
 }
 
 const COMMIT_PROGRESS = 0.35;
@@ -60,9 +62,10 @@ export function usePageGestures(opts: Options) {
   const active = useSharedValue(0);
   const settling = useSharedValue(0); // ignore new input while committing/cancelling
 
-  const { takeSnapshot, chooseUnder, commit, cancel, hasNext, hasPrev } = opts;
+  const { takeSnapshot, chooseUnder, commit, cancel, hasNext, hasPrev, tracker } = opts;
 
   const crinklePan = Gesture.Pan()
+    .simultaneousWithExternalGesture(tracker)
     .activeOffsetX([-14, 14])
     .failOffsetY([-16, 16])
     .onBegin(() => {

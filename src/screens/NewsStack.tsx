@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
@@ -13,6 +13,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArticlePage } from '../components/ArticlePage';
+import { TouchIndicator, useTouchIndicator } from '../components/TouchIndicator';
 import { ARTICLES, type Article } from '../data/articles';
 import { CrinkleOverlay } from '../effects/CrinkleOverlay';
 import { CrumpleOverlay } from '../effects/CrumpleOverlay';
@@ -46,6 +47,7 @@ export function NewsStack() {
   const [snapArticleId, setSnapArticleId] = useState<string | null>(null);
 
   const snapshot = useSnapshot();
+  const touch = useTouchIndicator();
 
   const hasNext = useSharedValue(true);
   const hasPrev = useSharedValue(false);
@@ -108,6 +110,7 @@ export function NewsStack() {
     cancel,
     hasNext,
     hasPrev,
+    tracker: touch.tracker,
   });
 
   // ── overscroll crumple: scroll state written by the current page ──
@@ -195,6 +198,7 @@ export function NewsStack() {
     canDelete,
     handleX,
     handleY,
+    tracker: touch.tracker,
   });
 
   // After the index/articles swap has rendered, the old page is unmounted —
@@ -227,6 +231,7 @@ export function NewsStack() {
   }));
 
   return (
+    <GestureDetector gesture={touch.tracker}>
     <View style={styles.root}>
       <GestureDetector gesture={crinklePan}>
         <View style={styles.deck}>
@@ -242,6 +247,7 @@ export function NewsStack() {
               overscroll={isCurrent ? overscroll : undefined}
               shouldHide={article.id === snapArticleId}
               pageRef={isCurrent ? snapshot.pageRef : undefined}
+              scrollSimultaneousWith={touch.trackerRef}
             />
           ))}
         </View>
@@ -265,7 +271,10 @@ export function NewsStack() {
       <GestureDetector gesture={binPan}>
         <View collapsable={false} style={[styles.handle, { top: insets.top + 4 }]} />
       </GestureDetector>
+      {/* demo fingertip — a translucent circle following any touch */}
+      <TouchIndicator x={touch.x} y={touch.y} pressed={touch.pressed} />
     </View>
+    </GestureDetector>
   );
 }
 
@@ -282,6 +291,8 @@ interface PageHolderProps {
   /** True only for the article frozen in the current snapshot. */
   shouldHide: boolean;
   pageRef?: React.RefObject<View | null>;
+  /** Touch-indicator tracker ref — the scroll gesture must not cancel it. */
+  scrollSimultaneousWith?: React.RefObject<GestureType | undefined>;
 }
 
 function PageHolder({
@@ -294,6 +305,7 @@ function PageHolder({
   overscroll,
   shouldHide,
   pageRef,
+  scrollSimultaneousWith,
 }: PageHolderProps) {
   const style = useAnimatedStyle(
     () => ({
@@ -314,6 +326,7 @@ function PageHolder({
         page={page}
         total={total}
         overscroll={overscroll}
+        scrollSimultaneousWith={scrollSimultaneousWith}
       />
     </Animated.View>
   );
