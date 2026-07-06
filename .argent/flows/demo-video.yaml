@@ -2,7 +2,7 @@ executionPrerequisite: Daily Crumple freshly restarted (restart-app, then wait
   ≥3s for the snapshot pre-warm) on sim 59D14D69-D2BF-4406-8F61-5BCDA88298B2,
   showing page 1 of 7 at scroll top, Metro running on 8085. The flow starts with
   an invisible warm-up tap for the first-gesture flake; screen recording can
-  start before executing. Runs ~22s, ends on the second bin toss (page 2 of 5).
+  start before executing. Runs ~12s, ends on the bin toss (page 1 of 6).
 steps:
   - echo: Warm-up tap (first synthetic gesture after restart is flaky) — invisible
       on screen
@@ -55,85 +55,9 @@ steps:
           x: 0.5
           y: 0.75
           delayMs: 16
-  - echo: "Beats 2-3: read-scroll down, then one continuous pull stretching into
-      the bottom overscroll crumple — single sequence, no dead time between them"
-  - tool: run-sequence
-    delayMs: 500
-    args:
-      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
-      steps:
-        - tool: gesture-custom
-          delayMs: 120
-          args:
-            interpolate: 4
-            events:
-              - type: Down
-                x: 0.5
-                y: 0.7
-                delayMs: 100
-              - type: Move
-                x: 0.5
-                y: 0.55
-                delayMs: 65
-              - type: Move
-                x: 0.5
-                y: 0.42
-                delayMs: 65
-              - type: Move
-                x: 0.5
-                y: 0.36
-                delayMs: 65
-              - type: Move
-                x: 0.5
-                y: 0.35
-                delayMs: 90
-              - type: Up
-                x: 0.5
-                y: 0.35
-                delayMs: 40
-        - tool: gesture-custom
-          args:
-            interpolate: 4
-            events:
-              - type: Down
-                x: 0.5
-                y: 0.75
-                delayMs: 80
-              - type: Move
-                x: 0.5
-                y: 0.65
-                delayMs: 70
-              - type: Move
-                x: 0.5
-                y: 0.55
-                delayMs: 70
-              - type: Move
-                x: 0.5
-                y: 0.45
-                delayMs: 70
-              - type: Move
-                x: 0.5
-                y: 0.36
-                delayMs: 70
-              - type: Move
-                x: 0.5
-                y: 0.29
-                delayMs: 80
-              - type: Move
-                x: 0.5
-                y: 0.25
-                delayMs: 100
-              - type: Move
-                x: 0.5
-                y: 0.25
-                delayMs: 350
-              - type: Up
-                x: 0.5
-                y: 0.25
-                delayMs: 16
-  - echo: "Beat 4: next page — slightly curved diagonal swipe, instant release"
+  - echo: "Beat 2: next page — slightly curved diagonal swipe, instant release"
   - tool: gesture-custom
-    delayMs: 1100
+    delayMs: 800
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
       interpolate: 4
@@ -145,81 +69,38 @@ steps:
         - type: Move
           x: 0.83
           y: 0.39
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.73
           y: 0.42
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.62
           y: 0.46
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.5
           y: 0.5
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.38
           y: 0.54
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.27
           y: 0.57
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.17
           y: 0.59
-          delayMs: 80
+          delayMs: 70
         - type: Up
           x: 0.17
           y: 0.59
           delayMs: 16
-  - echo: "Beat 5: one more next-page swipe — mirrored curve upward, instant release"
+  - echo: "Beat 3: back one page — curved diagonal from the left edge, instant release"
   - tool: gesture-custom
-    delayMs: 1100
-    args:
-      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
-      interpolate: 4
-      events:
-        - type: Down
-          x: 0.9
-          y: 0.6
-          delayMs: 120
-        - type: Move
-          x: 0.81
-          y: 0.59
-          delayMs: 80
-        - type: Move
-          x: 0.71
-          y: 0.56
-          delayMs: 80
-        - type: Move
-          x: 0.6
-          y: 0.52
-          delayMs: 80
-        - type: Move
-          x: 0.49
-          y: 0.48
-          delayMs: 80
-        - type: Move
-          x: 0.38
-          y: 0.44
-          delayMs: 80
-        - type: Move
-          x: 0.27
-          y: 0.41
-          delayMs: 80
-        - type: Move
-          x: 0.17
-          y: 0.39
-          delayMs: 80
-        - type: Up
-          x: 0.17
-          y: 0.39
-          delayMs: 16
-  - echo: "Beat 6: back one page — curved diagonal from the left edge, instant release"
-  - tool: gesture-custom
-    delayMs: 1100
+    delayMs: 900
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
       interpolate: 4
@@ -231,39 +112,39 @@ steps:
         - type: Move
           x: 0.17
           y: 0.46
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.27
           y: 0.49
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.38
           y: 0.53
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.5
           y: 0.57
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.62
           y: 0.6
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.73
           y: 0.62
-          delayMs: 80
+          delayMs: 70
         - type: Move
           x: 0.83
           y: 0.63
-          delayMs: 80
+          delayMs: 70
         - type: Up
           x: 0.83
           y: 0.63
           delayMs: 16
-  - echo: "Beat 7: delete — one continuous diagonal pull from the TEAR HERE corner,
-      instant release so the ball-and-bin animation chains directly"
+  - echo: "Beat 4 (money shot): tear the corner — one continuous diagonal pull,
+      instant release; the video ends on the bin swallowing the ball"
   - tool: gesture-custom
-    delayMs: 1100
+    delayMs: 1000
     args:
       udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
       interpolate: 4
@@ -299,44 +180,4 @@ steps:
         - type: Up
           x: 0.55
           y: 0.45
-          delayMs: 16
-  - echo: "Beat 8 (closer): delete another one — quicker continuous pull; the video
-      ends on the bin swallowing it"
-  - tool: gesture-custom
-    delayMs: 2500
-    args:
-      udid: 59D14D69-D2BF-4406-8F61-5BCDA88298B2
-      interpolate: 4
-      events:
-        - type: Down
-          x: 0.9
-          y: 0.1
-          delayMs: 150
-        - type: Move
-          x: 0.85
-          y: 0.15
-          delayMs: 70
-        - type: Move
-          x: 0.78
-          y: 0.22
-          delayMs: 70
-        - type: Move
-          x: 0.71
-          y: 0.29
-          delayMs: 70
-        - type: Move
-          x: 0.63
-          y: 0.37
-          delayMs: 70
-        - type: Move
-          x: 0.57
-          y: 0.43
-          delayMs: 70
-        - type: Move
-          x: 0.52
-          y: 0.48
-          delayMs: 70
-        - type: Up
-          x: 0.52
-          y: 0.48
           delayMs: 16
